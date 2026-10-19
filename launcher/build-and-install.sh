@@ -70,6 +70,10 @@ case "$OUT" in
   *Success*) ;;
   *) echo "ERROR: pm install failed; the stock launcher was left untouched." >&2; exit 1 ;;
 esac
+# The notification listener the Now playing card needs to see other apps' media sessions (best effort).
+printf '%s\n' \
+  "cmd notification allow_listener com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener 2>/dev/null && echo now-playing-granted || echo now-playing-not-granted" \
+  | "$PY" -I ../tools/tv.py --batch
 # Start the launcher on its own, before the stock Home is touched. In the batch below a start that
 # fails only prints an "Error:" line, and the stock launcher would be disabled anyway, leaving the TV
 # with no usable Home (#239). "Status: ok" from `am start -W` means the activity really came up;

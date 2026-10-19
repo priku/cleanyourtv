@@ -105,4 +105,9 @@
          sets its opacity. Around 60 reads clearly without hiding a wallpaper. Can also be set with
          "sky_intensity": 60 in a theme's config.json. -->
     <integer name="sky_intensity">0</integer>
+
+    <!-- Now playing: a card above the dock for the app playing in the background (YouTube Music, Spotify…),
+         with play/pause, previous and next. Needs the notification listener the install script enables;
+         without it the card never shows. false: never look. -->
+    <bool name="now_playing">true</bool>
 </resources>
