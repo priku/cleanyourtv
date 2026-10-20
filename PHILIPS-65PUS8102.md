@@ -43,12 +43,22 @@ settings put secure screensaver_enabled 1
 settings put secure enabled_notification_listeners "<entinen arvo>:com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener"
 ```
 
+## Tila 20.10.2026 klo 12.30
+
+- Upstreamiin yhdistetty: #295 (tämä debloat-lista, piiri korjattu MT5891:ksi) ja #301 (suomennos).
+- Avoinna: #315 (suomennos uusille teksteille), #150 (suorituskyky, Phil Trinh, perustuu meidän
+  `perf/standalone`-haaraan) ja #173 (Nyt soi -kortti, sisältää meidän Android 8.0 -korjauksen).
+- Haara `test/150-173-on-main`: #150 ja #173 rebasettuna toisen kierroksen mainiin, tarjottu tekijälle.
+- Tämän haaran launcher = upstream main + #150 + #173 + oma config.xml + suomennos (#315) +
+  `now_playing_description`. Nyt soi on päällä (`now_playing` true), asennus `NOW_PLAYING=1`.
+- Eco: sammutuksen ajastin 0 (pois). Kello: Philipsin kellotila "Maakohtainen", Androidin `auto_time` 1.
+
 ## Uudelleenasennus / muutokset
 
 ```
 export TV_HOST=192.168.50.9
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17 ANDROID_HOME=$HOME/Library/Android/sdk
-STOCK_LAUNCHER=none launcher/build-and-install.sh       # launcher
+STOCK_LAUNCHER=none NOW_PLAYING=1 launcher/build-and-install.sh   # launcher
 tools/disable.sh examples/philips-65pus8102/debloat.txt # debloat
 AIRPLAY_SRC=$HOME/android-airplay-server airplay/build-and-install.sh
 ```
