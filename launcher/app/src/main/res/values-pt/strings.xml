@@ -103,4 +103,5 @@
     <string name="race_live">%1$s · ao vivo</string>
     <string name="race_finished">Bandeira quadriculada</string>
     <string name="last_opened">Aberto %1$s</string>
+    <string name="now_playing_description">A reproduzir: OK reproduz ou pausa, esquerda e direita saltam, mantenha OK para abrir a app</string>
 </resources>
