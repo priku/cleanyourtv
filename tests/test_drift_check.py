@@ -176,6 +176,41 @@ class DriftCheckTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn(f"Home is {STOCK}/.MainActivity, which this list disables", result.stdout)
 
+    def test_home_on_a_stock_launcher_the_list_leaves_out_is_drift(self):
+        # The common case: build-and-install.sh disabled the stock launcher, the list never named it,
+        # and a firmware update turned it back on and gave it Home (#434 review).
+        self.write_list(["com.example.music", "com.example.store"])
+        self.tv(disabled=["com.example.music", "com.example.store"], home=f"{STOCK}/.MainActivity")
+        result = self.run_check(str(self.list_path))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"Home is {STOCK}/.MainActivity, not {CUSTOM}", result.stdout)
+
+    def test_fix_takes_home_back_from_a_stock_launcher_the_list_leaves_out(self):
+        self.write_list(["com.example.music", "com.example.store"])
+        self.tv(disabled=["com.example.music", "com.example.store"], home=f"{STOCK}/.MainActivity")
+        result = self.run_check("--fix", str(self.list_path))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(f"Home: set to {CUSTOM}/.MainActivity", result.stdout)
+        again = self.run_check(str(self.list_path))
+        self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
+
+    def test_stock_home_without_our_launcher_is_not_drift(self):
+        # Debloat only, no launcher installed: the stock launcher on Home is the intended state.
+        self.write_list(["com.example.music", "com.example.store"])
+        self.tv(installed=["com.example.music", "com.example.store", STOCK],
+                disabled=["com.example.music", "com.example.store"],
+                home=f"{STOCK}/.MainActivity", home_activities=[f"{STOCK}/.MainActivity"])
+        result = self.run_check(str(self.list_path))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_home_on_another_launcher_than_the_one_given_is_drift(self):
+        self.tv(installed=COMMON_LAUNCHERS, disabled=["com.example.music", "com.example.store", STOCK],
+                home=f"{CUSTOM}/.MainActivity",
+                home_activities=[f"{CUSTOM}/.MainActivity", f"{FORK}/.MainActivity"])
+        result = self.run_check(str(self.list_path), FORK)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"not {FORK}", result.stdout)
+
     def test_fix_disables_what_came_back(self):
         self.tv(disabled=[STOCK])
         result = self.run_check("--fix", str(self.list_path))

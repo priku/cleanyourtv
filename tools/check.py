@@ -69,22 +69,42 @@ def launcher_to_use(dev, listed, preferred=None):
     return own[0] if own else candidates[0]
 
 
-def inspect(dev, listed):
+def expected_launcher(installed, preferred=None):
+    """The launcher Home should be: the one asked for, else this repo's when it is installed.
+
+    None when neither is installed: then only a Home on a listed package (or no Home) is drift, since
+    there is no launcher of ours to compare with.
+    """
+    wanted = preferred or recovery.CUSTOM_LAUNCHER
+    return wanted if wanted in installed else None
+
+
+def inspect(dev, listed, preferred=None):
     installed, disabled = recovery.query_packages(dev)
     home = recovery.query_home(dev)
     back_on = [name for name in listed if name in installed and name not in disabled]
     gone = [name for name in listed if name not in installed]
-    home_drifted = home is None or home_of(home) in set(listed)
-    return installed, disabled, home, back_on, gone, home_drifted
+    # A firmware update can turn the stock launcher back on and hand it Home even when the list does
+    # not name it (build-and-install.sh disables it, not the list), so Home on anything but the
+    # launcher we expect is drift too.
+    expected = expected_launcher(installed, preferred)
+    home_drifted = (home is None or home_of(home) in set(listed)
+                    or (expected is not None and home_of(home) != expected))
+    return installed, disabled, home, back_on, gone, home_drifted, expected
 
 
-def report(list_path, listed, home, back_on, gone, home_drifted):
+def report(list_path, listed, home, back_on, gone, home_drifted, expected=None):
     print(f"checking {list_path} ({len(listed)} packages) on {os.environ.get('TV_HOST', '?')}")
     if back_on:
         print(f"  back on ({len(back_on)}): {', '.join(back_on)}")
     if home_drifted:
-        print(f"  Home is {home or 'nothing (no component answers HOME)'}"
-              + (", which this list disables" if home else ""))
+        if home and home_of(home) in set(listed):
+            why = ", which this list disables"
+        elif home:
+            why = f", not {expected}"
+        else:
+            why = ""
+        print(f"  Home is {home or 'nothing (no component answers HOME)'}{why}")
     if gone:
         # Not drift: the update may have removed an app for good, and there is nothing to disable.
         print(f"  not installed any more ({len(gone)}): {', '.join(gone)}")
@@ -154,8 +174,8 @@ def main():
                          f"(tools/venv/bin/python -I tools/tv.py --probe).\n")
         return 2
     try:
-        installed, disabled, home, back_on, gone, home_drifted = inspect(dev, listed)
-        code = report(list_path, listed, home, back_on, gone, home_drifted)
+        installed, disabled, home, back_on, gone, home_drifted, expected = inspect(dev, listed, preferred)
+        code = report(list_path, listed, home, back_on, gone, home_drifted, expected)
         if code and wanted:
             code = fix(dev, listed, back_on, home_drifted, preferred)
     finally:
