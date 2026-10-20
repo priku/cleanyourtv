@@ -6,11 +6,11 @@ uudempaan ei ole saatavilla.
 
 ## Muutokset telkkarissa
 
-**Käytöstä poistetut paketit (34 kpl)** – lista ja perustelut:
+**Käytöstä poistetut paketit (35 kpl)** – lista ja perustelut:
 [`examples/philips-65pus8102/debloat.txt`](examples/philips-65pus8102/debloat.txt)
 
 - Google/Philips suositus- ja mainosrivit, esittelyt, demo-tila
-- Philipsin telemetria: `usagelogger`, `candeebug` (DAC), `gel`
+- Philipsin telemetria: `usagelogger`, `candeebug` (DAC), `gel`; Inscape ACR -asiakas (`inscape_fp`-daemon jää, vaatii rootin)
 - NetTV-sovelluskauppa ja 13 NetTV-sovellusta
 - Esiasennetut: Gameloft-peli, TED, Opera-testisovellus, Play Music, Play Elokuvat
 - Google Assistant (`katniss`) ja Alexa – mikrofoninappi ei toimi tämän jälkeen

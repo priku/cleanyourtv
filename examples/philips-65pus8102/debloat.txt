@@ -65,3 +65,6 @@ org.droidtv.nettvregistration
 # TP Vision analytics (Priku)
 org.droidtv.candeebug
 org.droidtv.gel
+
+# Inscape ACR viewing fingerprinting client (Priku). ACR_Enable was already 0; /vendor/bin/inscape_fp daemon keeps running (needs root)
+tv.inscape.tvclient.inscapeacr
