@@ -87,4 +87,6 @@
         <item quantity="other">%1$d apps</item>
     </plurals>
     <string name="now_playing_description">Now playing: OK plays or pauses, left and right skip, hold OK to open the app</string>
+    <!-- The greeting, then greeting_name: "Good morning, Mr. Trịnh". -->
+    <string name="greeting_with_name">%1$s, %2$s</string>
 </resources>
