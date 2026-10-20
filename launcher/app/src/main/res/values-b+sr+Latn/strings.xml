@@ -62,4 +62,5 @@
         <item quantity="other">%1$d aplikacija</item>
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
+    <string name="now_playing_description">Sada se reprodukuje: OK pušta ili pauzira, levo i desno preskaču, zadržite OK da otvorite aplikaciju</string>
 </resources>

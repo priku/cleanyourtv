@@ -68,4 +68,5 @@
         <item quantity="other">%1$d apps</item>
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
+    <string name="now_playing_description">A reproduzir: OK reproduz ou pausa, esquerda e direita saltam, mantenha OK para abrir a app</string>
 </resources>
