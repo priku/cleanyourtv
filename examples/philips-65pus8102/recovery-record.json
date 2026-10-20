@@ -37,6 +37,7 @@
     "org.droidtv.nettvapps": "enabled",
     "org.droidtv.nettvrecommender": "enabled",
     "org.droidtv.nettvregistration": "enabled",
+    "org.droidtv.tv.frameworklogger": "enabled",
     "org.droidtv.usagelogger": "enabled",
     "tv.inscape.tvclient.inscapeacr": "enabled"
   },
