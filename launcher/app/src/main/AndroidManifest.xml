@@ -20,6 +20,10 @@
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
         </intent>
         <intent>
@@ -123,8 +127,7 @@
         </service>
 
         <!-- Now playing card: Android lists other apps' media sessions only to an enabled notification
-             listener. It ignores notifications; the install script enables it with
-             `cmd notification allow_listener`. -->
+             listener. It ignores notifications; it is enabled only when asked for (NOW_PLAYING=1 at install). -->
         <service
             android:name=".NowPlayingListener"
             android:exported="true"

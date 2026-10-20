@@ -70,11 +70,6 @@ case "$OUT" in
   *Success*) ;;
   *) echo "ERROR: pm install failed; the stock launcher was left untouched." >&2; exit 1 ;;
 esac
-# The notification listener the Now playing card needs to see other apps' media sessions (best effort).
-printf '%s\n' \
-  "cmd notification allow_listener com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener 2>/dev/null && echo now-playing-granted || echo now-playing-not-granted" \
-  'l=$(settings get secure enabled_notification_listeners); case "$l" in *com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener*) echo now-playing-listed ;; *) [ "$l" = null ] && l=; settings put secure enabled_notification_listeners "${l:+$l:}com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener" && echo now-playing-listed-by-setting ;; esac' \
-  | "$PY" -I ../tools/tv.py --batch
 # Start the launcher on its own, before the stock Home is touched. In the batch below a start that
 # fails only prints an "Error:" line, and the stock launcher would be disabled anyway, leaving the TV
 # with no usable Home (#239). "Status: ok" from `am start -W` means the activity really came up;
@@ -162,4 +157,14 @@ enable_service() {   # appends to enabled_accessibility_services without droppin
 }
 if [ "${INPUT_KEY_SERVICE:-0}" = 1 ]; then enable_service InputKeyService; fi
 if [ "${HOME_KEY_SERVICE:-0}" = 1 ]; then enable_service HomeKeyService; fi
+# Now playing card (now_playing in config.xml or a theme). Android lists other apps' media sessions only to
+# an enabled notification listener, and that grant lets the launcher read every notification on the TV, so
+# it is asked for, never automatic:
+#   NOW_PLAYING=1   enable the launcher's notification listener (NowPlayingListener)
+# Android 8.0 has no `cmd notification allow_listener` (it prints an error but exits 0), so the listener is
+# also added to enabled_notification_listeners when it is not there yet, and the result is checked.
+if [ "${NOW_PLAYING:-0}" = 1 ]; then
+  L=com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener
+  "$PY" -I ../tools/tv.py "cmd notification allow_listener $L >/dev/null 2>&1; l=\$(settings get secure enabled_notification_listeners); case \"\$l\" in *$L*) ;; *) [ \"\$l\" = null ] && l=; settings put secure enabled_notification_listeners \"\${l:+\$l:}$L\" ;; esac; case \"\$(settings get secure enabled_notification_listeners)\" in *$L*) echo now-playing-granted ;; *) echo now-playing-not-granted ;; esac"
+fi
 echo "Installed. Press Home on the remote to see it."

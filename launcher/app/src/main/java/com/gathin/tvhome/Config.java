@@ -50,12 +50,22 @@ final class Config {
     final int rowsBelowDock;
     final boolean shamsiDate;
     final boolean moduleCards;
+    /** The Now playing card (now_playing); off unless asked for. */
+    final boolean nowPlaying;
     /** Calmer motion for weak GPUs (config.xml, reduced_motion): stiff spring, short fades, no replay. */
     final boolean reducedMotion;
+    /** The focused dock app's name in large type above the dock (config.xml, dock_title). */
+    final boolean dockTitle;
+    /** The dock as its own row: band, no names, parked low (config.xml dock_row). false: one plain grid. */
+    final boolean dockRow;
+    /** Reorder button in the top bar (config.xml reorder_button); the Settings long-press menu offers it either way. */
+    final boolean reorderButton;
     final String vpnApp;
     final boolean showHomeSettingsShortcut;
-    /** The Now playing card above the dock (NowPlaying); also needs the notification listener granted. */
-    final boolean nowPlaying;
+    /** One line under the clock: CPU, free memory, free storage. Off unless config or a theme turns it on. */
+    final boolean showStats;
+    /** App library pill after the last Home row (config.xml app_library). */
+    final boolean appLibrary;
     /** Background colour behind everything, #RRGGBB; black unless a theme says otherwise. */
     final int backgroundColor;
     /** Time-of-day backdrop, 0 to 100 (config.xml, sky_intensity); 0 keeps the plain background. */
@@ -74,10 +84,10 @@ final class Config {
     private Config(List<String> dockApps, boolean fillDock, List<String> hiddenApps, String liveTvPackage,
                    String liveTvAction, String sourcePanelService, String sourcePanelAction, String inputAction,
                    int columns, int rowsBelowDock, boolean animations, boolean advancedEffects,
-                   boolean shamsiDate, boolean moduleCards, boolean reducedMotion, String vpnApp,
-                   boolean showHomeSettingsShortcut, int backgroundColor, int skyIntensity,
+                   boolean shamsiDate, boolean moduleCards, boolean nowPlaying, boolean reducedMotion, boolean dockTitle, boolean dockRow, boolean reorderButton, String vpnApp,
+                   boolean showHomeSettingsShortcut, boolean showStats, boolean appLibrary, int backgroundColor, int skyIntensity,
                    int[] settingsKeycodes, boolean settingsKeyPanel, File wallpaper, boolean overlayApplied,
-                   Festival festival, boolean nowPlaying) {
+                   Festival festival) {
         this.dockApps = Collections.unmodifiableList(dockApps);
         this.fillDock = fillDock;
         this.hiddenApps = Collections.unmodifiableList(hiddenApps);
@@ -92,10 +102,15 @@ final class Config {
         this.advancedEffects = advancedEffects;
         this.shamsiDate = shamsiDate;
         this.moduleCards = moduleCards;
+        this.nowPlaying = nowPlaying;
         this.reducedMotion = reducedMotion;
+        this.dockTitle = dockTitle;
+        this.dockRow = dockRow;
+        this.reorderButton = reorderButton;
         this.vpnApp = vpnApp;
         this.showHomeSettingsShortcut = showHomeSettingsShortcut;
-        this.nowPlaying = nowPlaying;
+        this.showStats = showStats;
+        this.appLibrary = appLibrary;
         this.backgroundColor = backgroundColor;
         this.skyIntensity = skyIntensity;
         this.settingsKeycodes = settingsKeycodes;
@@ -126,10 +141,15 @@ final class Config {
         boolean advancedEffects = res.getBoolean(R.bool.advanced_effects);
         boolean shamsi = res.getBoolean(R.bool.shamsi_date);
         boolean moduleCards = res.getBoolean(R.bool.module_cards);
+        boolean nowPlaying = res.getBoolean(R.bool.now_playing);
         boolean reducedMotion = res.getBoolean(R.bool.reduced_motion);
+        boolean dockTitle = res.getBoolean(R.bool.dock_title);
+        boolean dockRow = res.getBoolean(R.bool.dock_row);
+        boolean reorderButton = res.getBoolean(R.bool.reorder_button);
         String vpn = res.getString(R.string.vpn_app).trim();
         boolean homeSettings = res.getBoolean(R.bool.show_home_settings_shortcut);
-        boolean nowPlaying = res.getBoolean(R.bool.now_playing);
+        boolean showStats = res.getBoolean(R.bool.show_stats);
+        boolean library = res.getBoolean(R.bool.app_library);
         int background = 0xFF000000;
         int skyIntensity = res.getInteger(R.integer.sky_intensity);
         int[] settingsKeycodes = res.getIntArray(R.array.settings_key_keycodes);
@@ -155,10 +175,15 @@ final class Config {
             advancedEffects = bool(json, "advanced_effects", advancedEffects);
             shamsi = bool(json, "shamsi_date", shamsi);
             moduleCards = bool(json, "module_cards", moduleCards);
+            nowPlaying = bool(json, "now_playing", nowPlaying);
             reducedMotion = bool(json, "reduced_motion", reducedMotion);
+            dockTitle = bool(json, "dock_title", dockTitle);
+            dockRow = bool(json, "dock_row", dockRow);
+            reorderButton = bool(json, "reorder_button", reorderButton);
             vpn = string(json, "vpn_app", vpn);
             homeSettings = bool(json, "show_home_settings_shortcut", homeSettings);
-            nowPlaying = bool(json, "now_playing", nowPlaying);
+            showStats = bool(json, "show_stats", showStats);
+            library = bool(json, "app_library", library);
             background = color(json, "background_color", background);
             skyIntensity = integer(json, "sky_intensity", skyIntensity, 0, 100);
             settingsKeycodes = intArray(json, "settings_key_keycodes", settingsKeycodes);
@@ -182,9 +207,9 @@ final class Config {
 
         return new Config(dock, fillDock, hidden, liveTv, liveTvAction, panelService, panelAction, inputAction,
                 Math.max(1, columns), Math.max(0, rowsBelow), animations, advancedEffects,
-                shamsi, moduleCards, reducedMotion, vpn, homeSettings, background,
+                shamsi, moduleCards, nowPlaying, reducedMotion, dockTitle, dockRow, reorderButton, vpn, homeSettings, showStats, library, background,
                 Math.max(0, Math.min(100, skyIntensity)), settingsKeycodes, settingsKeyPanel, wallpaper, applied,
-                festival, nowPlaying);
+                festival);
     }
 
     private static void syncThemeChoices(SharedPreferences choices, File dir, File config) {

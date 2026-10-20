@@ -155,6 +155,22 @@
                             android:textAllCaps="true" />
                     </LinearLayout>
                 </LinearLayout>
+
+                <!-- Shown only when show_stats is on. Gone, it takes no space, so the clock stays put. -->
+                <TextView
+                    android:id="@+id/stats"
+                    android:gravity="left"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:textColor="#D9FFFFFF"
+                    android:textSize="14sp"
+                    android:fontFamily="@font/outfit_medium"
+                    android:letterSpacing="0.04"
+                    android:focusable="false"
+                    android:visibility="gone" />
             </LinearLayout>
 
             <LinearLayout
@@ -171,6 +187,7 @@
                     style="@style/TopButton"
                     android:text="@string/inputs"
                     android:drawableStart="@drawable/ic_input"
+                    android:nextFocusRight="@+id/btnWifi"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
@@ -181,6 +198,15 @@
                     android:ellipsize="end"
                     android:text="@string/wifi"
                     android:drawableStart="@drawable/ic_wifi"
+                    android:nextFocusLeft="@+id/btnInputs"
+                    android:nextFocusRight="@+id/btnSettings"
+                    android:nextFocusDown="@+id/grid" />
+
+                <TextView
+                    android:id="@+id/btnReorder"
+                    style="@style/TopButtonIcon"
+                    android:contentDescription="@string/reorder"
+                    android:drawableStart="@drawable/ic_swap_vert"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
@@ -188,6 +214,7 @@
                     style="@style/TopButton"
                     android:text="@string/settings"
                     android:drawableStart="@drawable/ic_settings"
+                    android:nextFocusLeft="@+id/btnWifi"
                     android:nextFocusDown="@+id/grid" />
             </LinearLayout>
         </RelativeLayout>
@@ -213,8 +240,8 @@
         </FrameLayout>
     </LinearLayout>
 
-    <!-- Now playing: the media session of the app playing in the background, right-aligned above the
-         dock and positioned in code. Hidden until there is one; see showNowPlaying. -->
+    <!-- Now playing (now_playing): the media session of the app playing in the background, at the end of the
+         row above the dock and placed in code (NowPlayingCard). Hidden until there is one. -->
     <LinearLayout
         android:id="@+id/nowPlaying"
         android:layout_width="wrap_content"
@@ -223,7 +250,7 @@
         android:layout_marginEnd="56dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="12dp"
+        android:padding="8dp"
         android:background="@drawable/now_playing_bg"
         android:focusable="true"
         android:clickable="true"
@@ -234,28 +261,27 @@
 
         <ImageView
             android:id="@+id/nowPlayingArt"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:scaleType="centerCrop"
             android:importantForAccessibility="no" />
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="14dp"
-            android:layout_marginEnd="14dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginEnd="10dp"
             android:orientation="vertical">
 
             <TextView
                 android:id="@+id/nowPlayingTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:maxWidth="250dp"
+                android:maxWidth="180dp"
                 android:singleLine="true"
                 android:ellipsize="end"
-                android:duplicateParentState="true"
-                android:textColor="@drawable/pill_text"
-                android:textSize="17sp"
+                android:textColor="#FFFFFFFF"
+                android:textSize="14sp"
                 android:fontFamily="@font/outfit"
                 android:fontVariationSettings="'wght' 500" />
 
@@ -263,23 +289,21 @@
                 android:id="@+id/nowPlayingSubtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:maxWidth="250dp"
+                android:layout_marginTop="1dp"
+                android:maxWidth="180dp"
                 android:singleLine="true"
                 android:ellipsize="end"
-                android:duplicateParentState="true"
-                android:textColor="@drawable/pill_text_mid"
-                android:textSize="13sp"
+                android:textColor="#B3FFFFFF"
+                android:textSize="11sp"
                 android:fontFamily="@font/outfit" />
         </LinearLayout>
 
         <ImageView
             android:id="@+id/nowPlayingState"
-            android:layout_width="26dp"
-            android:layout_height="26dp"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
             android:layout_marginEnd="4dp"
-            android:duplicateParentState="true"
-            android:tint="@drawable/pill_text"
+            android:tint="#FFFFFFFF"
             android:importantForAccessibility="no" />
     </LinearLayout>
 
