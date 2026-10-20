@@ -26,6 +26,7 @@ Play Kauppa, firmware-päivitykset, Ambilight/Hue, YouTube.
   Kortti tarvitsee notification listenerin. Android 8.0:ssa `cmd notification allow_listener` ei ole
   olemassa (palauttaa silti onnistumisen), joten `build-and-install.sh` lisää listenerin suoraan
   `enabled_notification_listeners`-asetukseen.
+- Suomenkielinen käännös (`values-fi`), tarjottu upstreamiin PR #301:nä; forkissa lisäksi Nyt soi -kortin teksti
 - Haara on synkronoitu upstream mainiin 20.10.2026 (mm. #248 palautustietue, #246/#247/#275/#277 launcher-korjaukset)
 
 **Asennetut sovellukset:** Disney+, HBO Max, Apple TV, Spotify, MTV Katsomo (Play Kauppa),
