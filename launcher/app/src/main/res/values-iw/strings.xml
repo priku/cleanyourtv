@@ -103,4 +103,12 @@
     <string name="race_live">%1$s · בשידור חי</string>
     <string name="race_finished">הדגל המשובץ</string>
     <string name="last_opened">נפתח לאחרונה %1$s</string>
+    <string name="net_menu_wifi_settings">הגדרות Wi-Fi</string>
+    <string name="net_menu_address">כתובת IP</string>
+    <string name="net_menu_offline">לא מחובר</string>
+    <string name="net_menu_adb">ADB</string>
+    <string name="net_menu_wireless_port">יציאת ניפוי באגים אלחוטי</string>
+    <string name="net_menu_checking">בודק…</string>
+    <string name="net_menu_not_found">לא נמצא</string>
+    <string name="net_menu_off">כבוי</string>
 </resources>

@@ -87,4 +87,12 @@
         <item quantity="other">%1$d تطبيق</item>
     </plurals>
     <string name="greeting_with_name">%1$s، %2$s</string>
+    <string name="net_menu_wifi_settings">إعدادات Wi-Fi</string>
+    <string name="net_menu_address">عنوان IP</string>
+    <string name="net_menu_offline">غير متصل</string>
+    <string name="net_menu_adb">ADB</string>
+    <string name="net_menu_wireless_port">منفذ تصحيح الأخطاء اللاسلكي</string>
+    <string name="net_menu_checking">جارٍ التحقق…</string>
+    <string name="net_menu_not_found">غير موجود</string>
+    <string name="net_menu_off">متوقف</string>
 </resources>

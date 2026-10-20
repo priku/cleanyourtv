@@ -58,4 +58,12 @@
         <item quantity="other">%1$d 个应用</item>
     </plurals>
     <string name="greeting_with_name">%1$s，%2$s</string>
+    <string name="net_menu_wifi_settings">WLAN 设置</string>
+    <string name="net_menu_address">IP 地址</string>
+    <string name="net_menu_offline">未连接</string>
+    <string name="net_menu_adb">ADB</string>
+    <string name="net_menu_wireless_port">无线调试端口</string>
+    <string name="net_menu_checking">正在检查…</string>
+    <string name="net_menu_not_found">未找到</string>
+    <string name="net_menu_off">关闭</string>
 </resources>
