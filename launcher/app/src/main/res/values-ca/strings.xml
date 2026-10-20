@@ -56,4 +56,5 @@
         <item quantity="other">%1$d aplicacions</item>
     </plurals>
     <string name="greeting_with_name">%1$s, %2$s</string>
+    <string name="now_playing_description">S\'està reproduint: OK reprodueix o pausa, esquerra i dreta salten, mantén OK per obrir l\'app</string>
 </resources>
