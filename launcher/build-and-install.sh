@@ -73,6 +73,7 @@ esac
 # The notification listener the Now playing card needs to see other apps' media sessions (best effort).
 printf '%s\n' \
   "cmd notification allow_listener com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener 2>/dev/null && echo now-playing-granted || echo now-playing-not-granted" \
+  'l=$(settings get secure enabled_notification_listeners); case "$l" in *com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener*) echo now-playing-listed ;; *) [ "$l" = null ] && l=; settings put secure enabled_notification_listeners "${l:+$l:}com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener" && echo now-playing-listed-by-setting ;; esac' \
   | "$PY" -I ../tools/tv.py --batch
 # Start the launcher on its own, before the stock Home is touched. In the batch below a start that
 # fails only prints an "Error:" line, and the stock launcher would be disabled anyway, leaving the TV

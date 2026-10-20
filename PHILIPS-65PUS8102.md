@@ -22,6 +22,11 @@ Play Kauppa, firmware-päivitykset, Ambilight/Hue, YouTube.
 - Alapalkki: Netflix, Disney+, HBO Max, Apple TV, MTV Katsomo, Spotify (6 saraketta)
 - Piilotettu: Live TV, TV-opas, Media, Play Pelit, käyttöopas, AirPlay
 - Suorituskykykorjaus upstream-PR #150:stä (vain perf-commit, sovitettu nykyiseen mainiin)
+- "Nyt soi" -kortti upstream-PR #173:sta (vain kortti; Bitcoin-rivi, itsepäivitys ja greeting_name jätetty pois).
+  Kortti tarvitsee notification listenerin. Android 8.0:ssa `cmd notification allow_listener` ei ole
+  olemassa (palauttaa silti onnistumisen), joten `build-and-install.sh` lisää listenerin suoraan
+  `enabled_notification_listeners`-asetukseen.
+- Haara on synkronoitu upstream mainiin 20.10.2026 (mm. #248 palautustietue, #246/#247/#275/#277 launcher-korjaukset)
 
 **Asennetut sovellukset:** Disney+, HBO Max, Apple TV, Spotify, MTV Katsomo (Play Kauppa),
 AirPlay-vastaanotin `io.github.jqssun.airplay` (nimellä "Living Room TV", skripti `airplay/`).
@@ -33,6 +38,7 @@ settings put global transition_animation_scale 0.5
 settings put global animator_duration_scale 0.5
 settings put secure screensaver_components com.gathin.tvhome/.ClockDream
 settings put secure screensaver_enabled 1
+settings put secure enabled_notification_listeners "<entinen arvo>:com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener"
 ```
 
 ## Uudelleenasennus / muutokset
@@ -51,6 +57,12 @@ Vaatii: JDK 17, Android SDK platform 34 + build-tools 34, NDK 27 (AirPlay).
 ```
 TV_HOST=192.168.50.9 tools/restore.sh examples/philips-65pus8102/debloat.txt com.google.android.tvlauncher
 ```
+Palautus lukee tietueen `~/.cleanyourtv/recovery-192.168.50.9-<hash>.json` (upstream #248): kaikki listan
+paketit olivat alun perin päällä, kotinäkymä oli `com.google.android.tvlauncher/.MainActivity` ja
+animaatioasetukset olivat oletuksia (`null`). Tietue rakennettiin varmuuskopiosta, ja kopio on
+[`examples/philips-65pus8102/recovery-record.json`](examples/philips-65pus8102/recovery-record.json).
+Uudella koneella kopioi se `~/.cleanyourtv/`-kansioon; tiedostonimen hash lasketaan listan absoluuttisesta
+polusta (`tools/recovery.py`, `record_path`).
 Alkuperäisen tilan varmuuskopio on vain paikallisesti (`backup-philips-*/`, ei repossa).
 
 ## ADB
