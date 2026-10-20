@@ -4,11 +4,13 @@ lake, with spruce silhouettes, birches in autumn colour and a few falling leaves
 or fonts are used, so the picture is original and can be redrawn by anyone.
 
     python3 make_wallpaper.py            # needs Pillow and NumPy; seed 1409 gives the same picture
+    python3 make_wallpaper.py --night    # wallpaper_night.jpg: the same shore under a crescent moon
 
 Kept dark on purpose (see themes/README.md, Wallpapers): the clock, the hero name and the dock band
 are designed for black, so the top corners and the bottom third stay close to it.
 """
 import math
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -19,6 +21,10 @@ S = 2                                   # draw at 2x, scale down for clean edges
 w, h = W * S, H * S
 HORIZON = 0.575                         # lake line, as a fraction of the height
 rng = np.random.default_rng(1409)
+NIGHT = "--night" in sys.argv[1:]
+# The night picture draws the same shore (same seed, same order of random draws); only the light changes.
+night_rng = np.random.default_rng(2210)
+MOON = (0.56, 0.30)                     # moon centre, as fractions of width and height
 
 
 def lerp(a, b, t):
@@ -36,19 +42,36 @@ def gradient(stops, n):
 
 # ---- sky and its warm afterglow --------------------------------------------------------------
 hy = int(h * HORIZON)
-sky_rows = gradient([(0.0, (7, 9, 20)), (0.35, (12, 14, 30)), (0.70, (30, 21, 32)),
-                     (0.90, (58, 32, 28)), (1.0, (76, 40, 26))], hy)
+if NIGHT:
+    sky_rows = gradient([(0.0, (3, 5, 12)), (0.45, (6, 9, 20)), (0.85, (12, 17, 32)), (1.0, (16, 21, 36))], hy)
+else:
+    sky_rows = gradient([(0.0, (7, 9, 20)), (0.35, (12, 14, 30)), (0.70, (30, 21, 32)),
+                         (0.90, (58, 32, 28)), (1.0, (76, 40, 26))], hy)
 img = np.zeros((h, w, 3))
 img[:hy] = sky_rows[:, None, :]
 yy, xx = np.mgrid[0:h, 0:w]
-glow = np.exp(-(((xx - w * 0.64) / (w * 0.30)) ** 2) - (((yy - hy) / (h * 0.16)) ** 2))
-img[:hy] += (glow[:hy, :, None] * np.array([46, 20, 4]))
+if NIGHT:
+    # a cool halo round the moon instead of the warm afterglow
+    mx, my = w * MOON[0], h * MOON[1]
+    halo = np.exp(-(((xx - mx) ** 2 + (yy - my) ** 2) / (h * 0.11) ** 2))
+    img[:hy] += halo[:hy, :, None] * np.array([18, 24, 34])
+else:
+    glow = np.exp(-(((xx - w * 0.64) / (w * 0.30)) ** 2) - (((yy - hy) / (h * 0.16)) ** 2))
+    img[:hy] += (glow[:hy, :, None] * np.array([46, 20, 4]))
 
 # a few faint stars high up
 for _ in range(70):
     x, y = rng.integers(0, w), rng.integers(0, int(h * 0.32))
     b = rng.uniform(25, 70)
     img[y:y + S, x:x + S] += b
+if NIGHT:                               # many more stars on a clear night, from their own generator
+    for _ in range(260):
+        x, y = night_rng.integers(0, w), night_rng.integers(0, int(h * 0.48))
+        img[y:y + S, x:x + S] += night_rng.uniform(20, 85)
+    # a crescent moon: a pale disc with its shadowed side cut away
+    mx, my, mr = w * MOON[0], h * MOON[1], 26 * S
+    moon = ((xx - mx) ** 2 + (yy - my) ** 2 <= mr ** 2) & ((xx - (mx - mr * 0.55)) ** 2 + (yy - my) ** 2 > mr ** 2)
+    img[moon] = np.array([206, 210, 196])
 
 scene = Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGB")
 d = ImageDraw.Draw(scene)
@@ -85,6 +108,8 @@ while x < w + 20 * S:
 
 # ---- birches in ruska colours, right foreground ------------------------------------------------
 RUSKA = [(150, 58, 22), (172, 92, 26), (118, 38, 24), (184, 122, 40), (96, 30, 22), (140, 104, 30)]
+if NIGHT:                               # moonlight takes most of the colour out of the leaves
+    RUSKA = [(int(r * 0.45 + 18), int(g * 0.45 + 20), int(b * 0.45 + 30)) for r, g, b in RUSKA]
 foliage = Image.new("RGBA", (w, h), (0, 0, 0, 0))
 fd = ImageDraw.Draw(foliage)
 trunks = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -93,7 +118,7 @@ for bx, top in ((0.865, 0.26), (0.935, 0.20), (0.79, 0.36)):
     cx = int(w * bx)
     tw = int(rng.uniform(9, 14) * S)
     ytop = int(h * top)
-    td.rectangle([cx - tw // 2, ytop, cx + tw // 2, hy + 4 * S], fill=(80, 76, 68, 255))
+    td.rectangle([cx - tw // 2, ytop, cx + tw // 2, hy + 4 * S], fill=(62, 66, 72, 255) if NIGHT else (80, 76, 68, 255))
     for _ in range(14):                    # the dark marks on birch bark
         y = rng.integers(ytop, hy)
         td.rectangle([cx - tw // 2, y, cx + rng.integers(-tw // 4, tw // 2), y + rng.integers(2, 5) * S],
@@ -139,6 +164,12 @@ fade = np.linspace(0.42, 0.10, lake_h)[:, None, None]
 water = refl * fade + np.array([4, 5, 9]) * (1 - fade)
 for i in range(0, lake_h, 7 * S):          # soft horizontal glints
     water[i:i + S] *= 1.18
+if NIGHT:                                  # the moon's broken path on the water
+    lyy, lxx = np.mgrid[0:lake_h, 0:w]
+    width = (10 + lyy / lake_h * 70) * S
+    path = np.exp(-((lxx - w * MOON[0]) / width) ** 2) * np.exp(-lyy / (lake_h * 0.55))
+    broken = (np.sin(lyy * 0.9 / S) > 0.2).astype(np.float64)
+    water += (path * broken)[:, :, None] * np.array([70, 74, 70])
 arr[hy:] = water
 
 # ---- falling leaves -----------------------------------------------------------------------------
@@ -165,6 +196,6 @@ out *= v[:, :, None]
 out += rng.normal(0, 1.4, out.shape)        # a little grain against banding
 
 final = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8), "RGB").resize((W, H), Image.LANCZOS)
-path = Path(__file__).with_name("wallpaper.jpg")
+path = Path(__file__).with_name("wallpaper_night.jpg" if NIGHT else "wallpaper.jpg")
 final.save(path, "JPEG", quality=84, optimize=True, progressive=True)
 print(f"{path} {path.stat().st_size // 1024} KB")
