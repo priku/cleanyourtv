@@ -98,6 +98,10 @@ final class Config {
     final List<File> wallpapers;
     final int wallpaperRotationMinutes;
     final int wallpaperDim;
+    /** The theme's wallpaper_night.jpg, or null; it replaces the wallpaper from nightFrom to nightUntil. */
+    final File wallpaperNight;
+    /** Minutes after midnight (config.json night_from / night_until, "HH:MM"); 18:00 and 06:00 by default. */
+    final int nightFrom, nightUntil;
     /** Whether the overlay file was present and parsed. */
     final boolean overlayApplied;
     /** Festive skin from a theme (festival, festival_until, greeting, accent_color); {@link Festival#NONE} if none. */
@@ -114,7 +118,8 @@ final class Config {
                    boolean shamsiDate, String greetingName, boolean moduleCards, boolean nowPlaying, boolean reducedMotion, boolean dockTitle, boolean dockRow, boolean reorderButton, String vpnApp,
                    boolean showHomeSettingsShortcut, boolean showStats, boolean appLibrary, int backgroundColor, int skyIntensity,
                    int[] settingsKeycodes, boolean settingsKeyPanel, boolean wallpaperEnabled, File wallpaper, List<File> wallpapers,
-                   int wallpaperRotationMinutes, int wallpaperDim, boolean overlayApplied,
+                   int wallpaperRotationMinutes, int wallpaperDim, File wallpaperNight, int nightFrom, int nightUntil,
+                   boolean overlayApplied,
                    Festival festival, int[] inputKeycodes, List<String> appKeys,
                    List<RaceWeekend.Race> raceCalendar, boolean cinematicHome) {
         this.inputKeycodes = inputKeycodes;
@@ -155,6 +160,9 @@ final class Config {
         this.wallpapers = Collections.unmodifiableList(wallpapers);
         this.wallpaperRotationMinutes = wallpaperRotationMinutes;
         this.wallpaperDim = wallpaperDim;
+        this.wallpaperNight = wallpaperNight;
+        this.nightFrom = nightFrom;
+        this.nightUntil = nightUntil;
         this.overlayApplied = overlayApplied;
         this.festival = festival;
         this.raceCalendar = Collections.unmodifiableList(raceCalendar);
@@ -285,6 +293,14 @@ final class Config {
                 wallpaperEnabled = true;
             }
         }
+        // An optional night picture, only next to a day wallpaper or collection.
+        File wallpaperNight = !wallpapers.isEmpty() ? new File(dir, NightWallpaper.FILE_NAME) : null;
+        if (wallpaperNight != null && !(wallpaperNight.isFile() && wallpaperNight.length() > 0)) wallpaperNight = null;
+        int nightFrom = NightWallpaper.DEFAULT_FROM, nightUntil = NightWallpaper.DEFAULT_UNTIL;
+        if (json != null) {
+            nightFrom = NightWallpaper.clock(string(json, "night_from", ""), nightFrom);
+            nightUntil = NightWallpaper.clock(string(json, "night_until", ""), nightUntil);
+        }
         // A festive skin comes only from a theme; config.xml has no festival.
         Festival festival = json == null ? Festival.NONE : Festival.parse(string(json, "festival", ""),
                 string(json, "festival_until", ""), string(json, "greeting", ""), string(json, "accent_color", ""));
@@ -295,7 +311,7 @@ final class Config {
                 Math.max(1, columns), Math.max(0, rowsBelow), animations, advancedEffects,
                 shamsi, greetingName, moduleCards, nowPlaying, reducedMotion, dockTitle, dockRow, reorderButton, vpn, homeSettings, showStats, library, background,
                 Math.max(0, Math.min(100, skyIntensity)), settingsKeycodes, settingsKeyPanel, wallpaperEnabled, wallpaper,
-                wallpapers, rotationMinutes, wallpaperDim, applied,
+                wallpapers, rotationMinutes, wallpaperDim, wallpaperNight, nightFrom, nightUntil, applied,
                 festival, inputKeycodes, appKeys, json == null ? Collections.emptyList() : raceCalendar(json), cinematic);
     }
 

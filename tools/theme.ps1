@@ -38,7 +38,7 @@ function Put($name) { $t = Stage $name; "cp $t $dir/$name 2>/dev/null || content
 function Del($name) { "rm -f $dir/$name 2>/dev/null; content delete --uri $uri/$name 2>/dev/null" }
 
 if ($Reset) {
-    & $py -I tv.py "mkdir -p $dir 2>/dev/null; $(Del 'config.json'); $(Del 'wallpaper.jpg'); printf '%s' '$revision' > $tmp-theme_revision; $(Put 'theme_revision'); $restart; echo reset"
+    & $py -I tv.py "mkdir -p $dir 2>/dev/null; $(Del 'config.json'); $(Del 'wallpaper.jpg'); $(Del 'wallpaper_night.jpg'); printf '%s' '$revision' > $tmp-theme_revision; $(Put 'theme_revision'); $restart; echo reset"
     exit 0
 }
 if (-not $Theme) { throw 'usage: theme.ps1 <theme folder> | -Reset' }
@@ -51,6 +51,8 @@ try { Get-Content $config -Raw | ConvertFrom-Json | Out-Null } catch { throw "$c
 & $py -I tv.py (Put 'config.json')
 $wall = Join-Path $Theme 'wallpaper.jpg'
 if (Test-Path $wall) { & $py -I b64push.py $wall "$tmp-wallpaper.jpg"; & $py -I tv.py (Put 'wallpaper.jpg') } else { & $py -I tv.py (Del 'wallpaper.jpg') | Out-Null }
+$night = Join-Path $Theme 'wallpaper_night.jpg'
+if (Test-Path $night) { & $py -I b64push.py $night "$tmp-wallpaper_night.jpg"; & $py -I tv.py (Put 'wallpaper_night.jpg') } else { & $py -I tv.py (Del 'wallpaper_night.jpg') | Out-Null }
 & $py -I tv.py "mkdir -p $dir/wallpapers 2>/dev/null; rm -f $dir/wallpapers/*.jpg $dir/wallpapers/*.jpeg $dir/wallpapers/*.png $dir/wallpapers/*.webp $dir/wallpapers/*.JPG $dir/wallpapers/*.JPEG $dir/wallpapers/*.PNG $dir/wallpapers/*.WEBP 2>/dev/null; content delete --uri $uri/wallpapers 2>/dev/null" | Out-Null
 $wallpapers = Join-Path $Theme 'wallpapers'
 if (Test-Path $wallpapers -PathType Container) {
