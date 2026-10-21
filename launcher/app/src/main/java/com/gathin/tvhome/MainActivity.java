@@ -541,23 +541,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         if (festive) applyFestiveSkin((TextView) btnInputs, (TextView) btnSettings);
         if (cfg.nowPlaying) {
-            nowPlaying = new NowPlayingCard(this, handler, root, grid, btnSettings, heroName, animations,
-                    new NowPlayingCard.Host() {
-                        @Override
-                        public void highlight(View card, float scale, float radius) {
-                            glassOnto(card, scale, radius);
-                        }
-
-                        @Override
-                        public void focusDockEnd() {
-                            focusTile(lastDockApp());
-                        }
-
-                        @Override
-                        public void open(Intent intent) {
-                            MainActivity.this.open(intent);
-                        }
-                    });
+            nowPlaying = new NowPlayingCard(this, handler, root, grid, btnSettings, heroName, animations);
         }
 
         // Hide the glass when focus leaves the tiles.
@@ -1115,39 +1099,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         float x = r.exactCenterX() - w / 2f;
         float y = r.exactCenterY() - h / 2f - (advancedEffects ? 4f * density : 0f);
 
-        ViewGroup.LayoutParams lp = glass.getLayoutParams();
-        if (lp.width != (int) w || lp.height != (int) h || card.getWidth() != glassCardW) {
-            lp.width = (int) w;
-            lp.height = (int) h;
-            glass.setLayoutParams(lp);
-            // GlassView draws its slab inset by pad, i.e. exactly over the zoomed tile: same corners as the tile.
-            glass.setRadius(AppAdapter.cornerRadius(card.getWidth(), density) * scale);
-        }
+        // GlassView draws its slab inset by pad, i.e. exactly over the zoomed tile: same corners as the tile.
+        glassTo(x, y, w, h, AppAdapter.cornerRadius(card.getWidth(), density) * scale, card.getWidth() != glassCardW);
         glassCardW = card.getWidth();
-        glassTargetX = x;
-        glassTargetY = y;
         // Cinematic shelf: the highlight glows in the dock app's colour, plain white in the grid.
         int accent = cinematic && !festive && position < COLUMNS ? adapter.ambientColorAt(position) : 0;
         if (cinematic && !festive && accent != glassAccent) {
             glassAccent = accent;
             glass.setAccent(accent);
-        }
-        if (!glassShown) {
-            springX.cancel();
-            springY.cancel();
-            glass.setTranslationX(x);
-            glass.setTranslationY(y);
-            if (animations) glass.animate().alpha(1f).setDuration(reducedMotion ? 100 : 180).start();
-            else glass.setAlpha(1f);
-            glassShown = true;
-        } else if (!animations) {
-            springX.cancel();
-            springY.cancel();
-            glass.setTranslationX(x);
-            glass.setTranslationY(y);
-        } else {
-            springX.animateToFinalPosition(x);
-            springY.animateToFinalPosition(y - glassScrollShift);
         }
         View item = (View) card.getParent();
         if (dockRow && position < COLUMNS) {
@@ -1693,11 +1652,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
             if (position < COLUMNS) {
                 if (nowPlaying == null || !nowPlaying.visible()) return false;   // dock row: on to the top bar
-                // With the Now playing card up, only the dock's last app goes to it; the others go to the
-                // top button above them, as without the card.
-                if (position == lastDockApp()) nowPlaying.requestFocus();
-                else topButtonAbove(position).requestFocus();
-                return true;
+                // With the Now playing card up, the dock's last app goes to it; the others go to the top
+                // bar as without the card (the card is not focusable until it is entered).
+                return position == lastDockApp() && nowPlaying.requestFocus();
             }
             target = position - COLUMNS;
         } else {
@@ -1720,49 +1677,38 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         return Math.max(0, Math.min(COLUMNS, adapter.dockFilled()) - 1);
     }
 
-    /** The visible top button nearest horizontally to the dock tile at {@code position}. */
-    private View topButtonAbove(int position) {
-        RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(position);
-        float x = 0;
-        if (vh != null) {
-            Rect r = new Rect(0, 0, vh.itemView.getWidth(), vh.itemView.getHeight());
-            root.offsetDescendantRectToMyCoords(vh.itemView, r);
-            x = r.exactCenterX();
-        }
-        View best = btnWifi;
-        float bestD = Float.MAX_VALUE;
-        for (View b : new View[]{btnInputs, btnWifi, findViewById(R.id.btnSettings)}) {
-            if (b.getVisibility() != View.VISIBLE) continue;
-            Rect r = new Rect(0, 0, b.getWidth(), b.getHeight());
-            root.offsetDescendantRectToMyCoords(b, r);
-            float d = Math.abs(r.exactCenterX() - x);
-            if (d < bestD) {
-                bestD = d;
-                best = b;
-            }
-        }
-        return best;
+    /** Back from the Now playing card to the dock's last app, the tile it is entered from. */
+    void focusDockEnd() {
+        focusTile(lastDockApp());
     }
 
     /**
      * The glass highlight onto a view outside the grid (the Now playing card), as it looks scaled by
      * {@code scale}, with the view's unscaled corner {@code radius}. The card is placed with setY, which
-     * the layout rect leaves out; the spring works in grid content coordinates.
+     * the layout rect leaves out.
      */
-    private void glassOnto(View target, float scale, float radius) {
+    void glassOnto(View target, float scale, float radius) {
         Rect r = new Rect(0, 0, target.getWidth(), target.getHeight());
         root.offsetDescendantRectToMyCoords(target, r);
-        r.offset(Math.round(target.getTranslationX()), Math.round(target.getTranslationY()));
         float pad = 6f * density;        // matches GlassView's glow inset
         float w = target.getWidth() * scale + 2 * pad;
         float h = target.getHeight() * scale + 2 * pad;
-        float x = r.exactCenterX() - w / 2f;
-        float y = r.exactCenterY() - h / 2f;
+        glassTo(r.exactCenterX() - w / 2f, r.exactCenterY() + target.getTranslationY() - h / 2f, w, h, radius * scale, true);
+        glassCardW = -1;   // a tile focused next sets its own corners again
+    }
+
+    /**
+     * Moves the glass highlight to a w x h slab at (x, y) in root coordinates: in one jump the first time
+     * or without animations, otherwise on the spring (which works in grid content coordinates).
+     */
+    private void glassTo(float x, float y, float w, float h, float radius, boolean corners) {
         ViewGroup.LayoutParams lp = glass.getLayoutParams();
-        lp.width = (int) w;
-        lp.height = (int) h;
-        glass.setLayoutParams(lp);
-        glass.setRadius(radius * scale);
+        if (lp.width != (int) w || lp.height != (int) h || corners) {
+            lp.width = (int) w;
+            lp.height = (int) h;
+            glass.setLayoutParams(lp);
+            glass.setRadius(radius);
+        }
         glassTargetX = x;
         glassTargetY = y;
         if (!glassShown || !animations) {
@@ -2163,7 +2109,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     }
 
-    private void open(Intent i) {
+    void open(Intent i) {
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             startActivity(i);
