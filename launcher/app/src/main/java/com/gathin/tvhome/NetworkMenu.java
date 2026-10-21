@@ -11,8 +11,6 @@ import android.os.Handler;
 import android.provider.Settings;
 
 import java.net.Inet4Address;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 
 /**
  * What the network menu (hold OK on the network pill) reads: the TV's IPv4 address, whether classic
@@ -49,14 +47,19 @@ final class NetworkMenu {
         return Settings.Global.getInt(ctx.getContentResolver(), "adb_wifi_enabled", 0) == 1;
     }
 
-    /** Classic ADB (adb tcpip 5555) is open when something accepts a connection there; checked on its own thread. */
+    /**
+     * Classic ADB (adb tcpip 5555) is on when adbd says it listens on TCP (service.adb.tcp.port). The
+     * launcher has no INTERNET permission, so it cannot open a socket to check: on Android 8 connect()
+     * fails with EACCES and the row would say Off while ADB is on. Checked on its own thread.
+     */
     static void probeAdb(Handler main, Result<Boolean> result) {
         new Thread(() -> {
             boolean open;
-            try (Socket sock = new Socket()) {
-                sock.connect(new InetSocketAddress("127.0.0.1", ADB_PORT), 400);
-                open = true;
-            } catch (Exception e) {
+            try {
+                String port = (String) Class.forName("android.os.SystemProperties")
+                        .getMethod("get", String.class).invoke(null, "service.adb.tcp.port");
+                open = String.valueOf(ADB_PORT).equals(port);
+            } catch (Exception | LinkageError e) {
                 open = false;
             }
             final boolean answer = open;

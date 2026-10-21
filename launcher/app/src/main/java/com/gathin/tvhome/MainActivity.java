@@ -2323,9 +2323,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         NetworkMenu.probeAdb(handler, open -> {
             if (popup.isShowing()) adb.setText(open && ip != null ? ip + ":" + NetworkMenu.ADB_PORT : getString(R.string.net_menu_off));
         });
-        final NsdManager nsd = getSystemService(NsdManager.class);
+        // Without INTERNET (the launcher has none) Android 8 refuses the NSD service outright, so the
+        // Wireless debugging search is simply skipped there.
+        NsdManager service = null;
+        try {
+            if (ip != null && NetworkMenu.wirelessDebuggingOn(this)) service = getSystemService(NsdManager.class);
+        } catch (SecurityException noInternet) {
+            // Leave the row at Off.
+        }
+        final NsdManager nsd = service;
         final NsdManager.DiscoveryListener search;
-        if (ip == null || !NetworkMenu.wirelessDebuggingOn(this)) {
+        if (nsd == null) {
             wireless.setText(R.string.net_menu_off);
             search = null;
         } else {
