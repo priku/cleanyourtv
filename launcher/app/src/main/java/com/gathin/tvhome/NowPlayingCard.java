@@ -1,69 +1,117 @@
 package com.gathin.tvhome;
 
-import android.app.Activity;
-import android.app.ActivityOptions;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.Outline;
 import android.graphics.Rect;
-import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.media.MediaMetadata;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
-import android.os.Build;
 import android.os.Handler;
-import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
-import android.view.ViewOutlineProvider;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
  * The Now playing card (now_playing): the media session of an app playing in the background, right-aligned
- * just above the dock, with play/pause on OK, skip on Left/Right and the app's player on a long press.
- * It is reached only from Settings (Down) and the dock's last app (Up); Down goes back to that app.
+ * just above the dock, with play/pause on OK, skip on Left/Right and the app itself on a long press.
+ * It is reached only from Settings (Down) and the dock's last app (Up); Down goes back to that app. The card
+ * is focusable only while it is being entered, so focus search from the other tiles and pills never lands on it.
  *
  * Android lists other apps' media sessions only to a caller with an enabled notification listener
  * ({@link NowPlayingListener}), which the install script enables when asked (NOW_PLAYING=1). Without it
- * the card never shows. Every step into the media session APIs runs under {@link NowPlaying#run}: the
- * first failure switches the card off for the session.
+ * Android refuses the session list and the card never shows. The first failure in the media session APIs switches the card off for the session
+ * ({@link #broken}).
+ *
+ * One object does all the listening (keys, clicks, focus, layout, scrolling, session changes), so the card
+ * adds as few classes to the APK as possible: the launcher has a size budget.
  */
-final class NowPlayingCard {
+final class NowPlayingCard extends MediaController.Callback implements Runnable, View.OnClickListener,
+        View.OnLongClickListener, View.OnKeyListener, View.OnFocusChangeListener, View.OnLayoutChangeListener,
+        ViewTreeObserver.OnScrollChangedListener, MediaSessionManager.OnActiveSessionsChangedListener {
 
-    /** What the card needs from Home. */
-    interface Host {
-        /** Springs the tile highlight onto the card, as it looks scaled by {@code scale}. */
-        void highlight(View card, float scale, float radius);
+    private static final float FOCUS_SCALE = 1.04f;
+    /** Set by the first failure in the media session APIs: the card stays off for this session. */
+    static volatile boolean broken;
 
-        /** Focuses the dock's last app, the tile the card is entered from. */
-        void focusDockEnd();
+    // android.media.session.PlaybackState values, repeated so the logic below stays testable on the JVM.
+    static final int STATE_PAUSED = 2;
+    static final int STATE_PLAYING = 3;
 
-        void open(Intent intent);
+    /** Playing, or about to: the card shows these first and draws the pause glyph. */
+    static boolean isActive(int state) {
+        switch (state) {
+            case STATE_PLAYING:
+            case 4:    // fast forwarding
+            case 5:    // rewinding
+            case 6:    // buffering
+            case 8:    // connecting
+            case 9:    // skipping to previous
+            case 10:   // skipping to next
+            case 11:   // skipping to a queue item
+                return true;
+            default:
+                return false;
+        }
     }
 
-    static final float FOCUS_SCALE = 1.04f;
+    /**
+     * The session to show, as an index into the lists Android returns (most recently active first):
+     * the first one playing, else the first one paused; -1 when nothing is playing or paused. The
+     * launcher's own package is skipped.
+     */
+    static int choose(int[] states, String[] packages, String self) {
+        int paused = -1;
+        for (int i = 0; i < states.length; i++) {
+            if (self.equals(packages[i])) continue;
+            if (isActive(states[i])) return i;
+            if (states[i] == STATE_PAUSED && paused < 0) paused = i;
+        }
+        return paused;
+    }
 
-    private final Activity activity;
+    /** The first line: the track's title, else the display title, else the app's name. */
+    static String title(String title, String displayTitle, String appLabel) {
+        if (!blank(title)) return title.trim();
+        if (!blank(displayTitle)) return displayTitle.trim();
+        return appLabel;
+    }
+
+    /**
+     * The second line, "artist · app": the artist (or the album when there is none) and the app's
+     * name, leaving out what's missing and the app's name when the first line already is it.
+     */
+    static String subtitle(String artist, String album, String appLabel, String shownTitle) {
+        String who = !blank(artist) ? artist.trim() : !blank(album) ? album.trim() : "";
+        boolean appInTitle = appLabel.equals(shownTitle);
+        if (who.isEmpty()) return appInTitle ? "" : appLabel;
+        return appInTitle ? who : who + " · " + appLabel;
+    }
+
+    private static boolean blank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+
+
+    private final MainActivity home;
     private final Handler handler;
     private final FrameLayout root;
     private final RecyclerView grid;
     private final View topBar;
     private final TextView heroName;
-    private final Host host;
     private final boolean animations;
     private final float density;
     private final View card;
@@ -75,181 +123,111 @@ final class NowPlayingCard {
     private MediaSessionManager sessions;
     private final List<MediaController> watched = new ArrayList<>();
     private MediaController shown;
-    private boolean hasSession;
     private boolean visible;
     private Bitmap artSource;
     private String artPkg;
 
-    private final Runnable refresh = () -> NowPlaying.run(() -> {
-        refresh();
-        return null;
-    }, null);
-    private final MediaController.Callback sessionCallback = new MediaController.Callback() {
-        @Override
-        public void onPlaybackStateChanged(PlaybackState state) {
-            schedule();
-        }
-
-        @Override
-        public void onMetadataChanged(MediaMetadata metadata) {
-            schedule();
-        }
-
-        @Override
-        public void onSessionDestroyed() {
-            schedule();
-        }
-    };
-    private final MediaSessionManager.OnActiveSessionsChangedListener sessionsChanged = list -> NowPlaying.run(() -> {
-        watch(list);
-        return null;
-    }, null);
-
-    NowPlayingCard(Activity activity, Handler handler, FrameLayout root, RecyclerView grid, View topBar,
-                   TextView heroName, boolean animations, Host host) {
-        this.activity = activity;
+    NowPlayingCard(MainActivity home, Handler handler, FrameLayout root, RecyclerView grid, View topBar,
+                   TextView heroName, boolean animations) {
+        this.home = home;
         this.handler = handler;
         this.root = root;
         this.grid = grid;
         this.topBar = topBar;
         this.heroName = heroName;
         this.animations = animations;
-        this.host = host;
-        density = activity.getResources().getDisplayMetrics().density;
-        card = activity.findViewById(R.id.nowPlaying);
-        art = activity.findViewById(R.id.nowPlayingArt);
-        stateIcon = activity.findViewById(R.id.nowPlayingState);
-        title = activity.findViewById(R.id.nowPlayingTitle);
-        subtitle = activity.findViewById(R.id.nowPlayingSubtitle);
-        listener = new ComponentName(activity, NowPlayingListener.class);
+        density = home.getResources().getDisplayMetrics().density;
+        card = home.findViewById(R.id.nowPlaying);
+        art = home.findViewById(R.id.nowPlayingArt);
+        stateIcon = home.findViewById(R.id.nowPlayingState);
+        title = home.findViewById(R.id.nowPlayingTitle);
+        subtitle = home.findViewById(R.id.nowPlayingSubtitle);
+        listener = new ComponentName(home, NowPlayingListener.class);
         heroName.setEllipsize(TextUtils.TruncateAt.END);
-        card.setContentDescription(activity.getString(R.string.now_playing_description));
-
-        // Focus looks like a tile's: the card lifts and the glass highlight springs onto it.
-        card.setOnFocusChangeListener((v, focused) -> {
-            float s = focused ? FOCUS_SCALE : 1f;
-            if (animations) v.animate().scaleX(s).scaleY(s).setDuration(focused ? 200 : 160).start();
-            else {
-                v.setScaleX(s);
-                v.setScaleY(s);
-            }
-            if (focused) host.highlight(v, FOCUS_SCALE, 16 * density);
-        });
-        final float artRadius = 9 * density;
-        art.setOutlineProvider(new ViewOutlineProvider() {
-            @Override
-            public void getOutline(View v, Outline outline) {
-                outline.setRoundRect(0, 0, v.getWidth(), v.getHeight(), artRadius);
-            }
-        });
+        // The pills' glass, with a tile's lift and highlight for focus.
+        GradientDrawable glass = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x2EFFFFFF, 0x14FFFFFF});
+        glass.setStroke(Math.round(density), 0x38FFFFFF);
+        glass.setCornerRadius(16 * density);
+        card.setBackground(glass);
+        // Rounded artwork: the outline comes from this background, which the artwork covers.
+        GradientDrawable corners = new GradientDrawable();
+        corners.setCornerRadius(9 * density);
+        art.setBackground(corners);
         art.setClipToOutline(true);
-        card.setOnClickListener(v -> NowPlaying.run(() -> {
-            MediaController c = shown;
-            if (c == null) return null;
-            PlaybackState st = c.getPlaybackState();
-            if (st != null && NowPlaying.isActive(st.getState())) c.getTransportControls().pause();
-            else c.getTransportControls().play();
-            return null;
-        }, null));
-        card.setOnLongClickListener(v -> {
-            NowPlaying.run(() -> {
-                openApp();
-                return null;
-            }, null);
-            return true;
-        });
-        card.setOnKeyListener((v, keyCode, event) -> {
-            boolean left = keyCode == KeyEvent.KEYCODE_DPAD_LEFT;
-            if (!left && keyCode != KeyEvent.KEYCODE_DPAD_RIGHT && keyCode != KeyEvent.KEYCODE_DPAD_DOWN) return false;
-            if (event.getAction() != KeyEvent.ACTION_DOWN) return true;
-            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                host.focusDockEnd();
-                return true;
-            }
-            if (event.getRepeatCount() > 0) return true;   // one skip per press, not a run of them
-            NowPlaying.run(() -> {
-                MediaController c = shown;
-                if (c == null) return null;
-                if (left) c.getTransportControls().skipToPrevious();
-                else c.getTransportControls().skipToNext();
-                return null;
-            }, null);
-            return true;
-        });
+        card.setOnClickListener(this);
+        card.setOnLongClickListener(this);
+        card.setOnKeyListener(this);
+        card.setOnFocusChangeListener(this);
         // The card sits in the space above the dock: keep it there as the layout settles, and out of the
         // way while the grid is scrolled up over that space.
-        grid.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> grid.post(this::place));
-        grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
-                if (hasSession) place();
-            }
-        });
+        grid.addOnLayoutChangeListener(this);
+        card.addOnLayoutChangeListener(this);
+        grid.getViewTreeObserver().addOnScrollChangedListener(this);
     }
 
-    /** On screen and focusable: the dock's last app and Settings lead to it. */
     boolean visible() {
         return visible;
     }
 
+    /** Enters the card from the dock's last app or from Settings. */
     boolean requestFocus() {
-        return visible && card.requestFocus();
+        if (!visible) return false;
+        card.setFocusable(true);
+        return card.requestFocus();
     }
 
     void start() {
-        if (!NowPlaying.working()) return;
-        NowPlaying.run(() -> {
-            if (!listenerGranted()) {
-                hasSession = false;
-                place();
-                return null;
-            }
-            if (sessions == null) sessions = activity.getSystemService(MediaSessionManager.class);
-            sessions.addOnActiveSessionsChangedListener(sessionsChanged, listener, handler);
-            watch(sessions.getActiveSessions(listener));
-            return null;
-        }, null);
-        if (!NowPlaying.working()) {
-            hasSession = false;
-            place();
+        if (broken) return;
+        try {
+            if (sessions == null) sessions = home.getSystemService(MediaSessionManager.class);
+            sessions.addOnActiveSessionsChangedListener(this, listener, handler);
+            onActiveSessionsChanged(sessions.getActiveSessions(listener));
+        } catch (SecurityException notGranted) {
+            // The notification listener isn't enabled (NOW_PLAYING=1 at install): no sessions to show.
+            show(null);
+        } catch (Exception | LinkageError e) {
+            fail(e);
         }
     }
 
     void stop() {
-        handler.removeCallbacks(refresh);
-        NowPlaying.run(() -> {
-            if (sessions != null) sessions.removeOnActiveSessionsChangedListener(sessionsChanged);
-            unwatch();
-            return null;
-        }, null);
+        handler.removeCallbacks(this);
+        try {
+            if (sessions != null) sessions.removeOnActiveSessionsChangedListener(this);
+        } catch (Exception ignored) {
+            // Not registered: nothing to undo.
+        }
+        unwatch();
     }
 
-    /** Whether the notification listener is enabled, without which Android lists no sessions. */
-    private boolean listenerGranted() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            NotificationManager nm = activity.getSystemService(NotificationManager.class);
-            return nm != null && nm.isNotificationListenerAccessGranted(listener);
-        }
-        String enabled = Settings.Secure.getString(activity.getContentResolver(), "enabled_notification_listeners");
-        return enabled != null && Arrays.asList(enabled.split(":")).contains(listener.flattenToString());
+    private void fail(Throwable t) {
+        if (!broken) Log.w("TvHome", "now playing off", t);
+        broken = true;
+        show(null);
     }
 
     /** Follows every active session, so whichever one starts playing can take the card. */
-    private void watch(List<MediaController> list) {
+    @Override
+    public void onActiveSessionsChanged(List<MediaController> list) {
         unwatch();
-        if (list != null) {
-            for (MediaController c : list) {
-                c.registerCallback(sessionCallback, handler);
-                watched.add(c);
+        try {
+            if (list != null) {
+                for (MediaController c : list) {
+                    c.registerCallback(this, handler);
+                    watched.add(c);
+                }
             }
+            run();
+        } catch (Exception | LinkageError e) {
+            fail(e);
         }
-        refresh();
     }
 
     private void unwatch() {
         for (MediaController c : watched) {
             try {
-                c.unregisterCallback(sessionCallback);
+                c.unregisterCallback(this);
             } catch (Exception ignored) {
                 // A session that died already has nothing to unregister.
             }
@@ -257,163 +235,214 @@ final class NowPlayingCard {
         watched.clear();
     }
 
-    /** Callbacks can come in bursts (state, then metadata); draw once after them. */
-    private void schedule() {
-        handler.removeCallbacks(refresh);
-        handler.postDelayed(refresh, 120);
+    // Callbacks come in bursts (state, then metadata): draw once after them.
+    @Override
+    public void onPlaybackStateChanged(PlaybackState state) {
+        handler.removeCallbacks(this);
+        handler.postDelayed(this, 120);
     }
 
-    private void refresh() {
-        int n = watched.size();
-        int[] states = new int[n];
-        String[] packages = new String[n];
-        for (int i = 0; i < n; i++) {
-            PlaybackState st = watched.get(i).getPlaybackState();
-            states[i] = st != null ? st.getState() : NowPlaying.STATE_NONE;
-            packages[i] = watched.get(i).getPackageName();
+    @Override
+    public void onMetadataChanged(MediaMetadata metadata) {
+        onPlaybackStateChanged(null);
+    }
+
+    @Override
+    public void onSessionDestroyed() {
+        onPlaybackStateChanged(null);
+    }
+
+    /** Picks the session to show and draws it. */
+    @Override
+    public void run() {
+        if (broken) return;
+        try {
+            int n = watched.size();
+            int[] states = new int[n];
+            String[] packages = new String[n];
+            for (int i = 0; i < n; i++) {
+                PlaybackState st = watched.get(i).getPlaybackState();
+                states[i] = st != null ? st.getState() : 0;
+                packages[i] = watched.get(i).getPackageName();
+            }
+            int pick = choose(states, packages, home.getPackageName());
+            if (pick >= 0) bind(watched.get(pick), states[pick]);
+            show(pick >= 0 ? watched.get(pick) : null);
+        } catch (Exception | LinkageError e) {
+            fail(e);
         }
-        int pick = NowPlaying.choose(states, packages, activity.getPackageName());
-        shown = pick >= 0 ? watched.get(pick) : null;
-        hasSession = shown != null;
-        if (hasSession) bind(shown, states[pick]);
-        place();
     }
 
     private void bind(MediaController c, int state) {
         String pkg = c.getPackageName();
+        PackageManager pm = home.getPackageManager();
         String appLabel = pkg;
         try {
-            appLabel = activity.getPackageManager().getApplicationLabel(
-                    activity.getPackageManager().getApplicationInfo(pkg, 0)).toString();
+            appLabel = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString();
         } catch (Exception ignored) {
             // A package we can't see keeps its package name.
         }
         MediaMetadata md = c.getMetadata();
-        String line1 = NowPlaying.title(text(md, MediaMetadata.METADATA_KEY_TITLE),
+        String line1 = title(text(md, MediaMetadata.METADATA_KEY_TITLE),
                 text(md, MediaMetadata.METADATA_KEY_DISPLAY_TITLE), appLabel);
-        title.setText(line1);
-        String line2 = NowPlaying.subtitle(text(md, MediaMetadata.METADATA_KEY_ARTIST),
+        String line2 = subtitle(text(md, MediaMetadata.METADATA_KEY_ARTIST),
                 text(md, MediaMetadata.METADATA_KEY_ALBUM), appLabel, line1);
+        title.setText(line1);
         subtitle.setText(line2);
         subtitle.setVisibility(line2.isEmpty() ? View.GONE : View.VISIBLE);
-        stateIcon.setImageResource(NowPlaying.isActive(state) ? R.drawable.ic_pause : R.drawable.ic_play);
+        card.setContentDescription(line2.isEmpty() ? line1 : line1 + ", " + line2);
+        stateIcon.setImageResource(isActive(state)   // the platform's glyphs: no artwork of our own to ship
+                ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play);
 
-        Bitmap picture = null;
-        if (md != null) {
-            for (String key : new String[]{MediaMetadata.METADATA_KEY_ART, MediaMetadata.METADATA_KEY_ALBUM_ART,
-                    MediaMetadata.METADATA_KEY_DISPLAY_ICON}) {
-                picture = md.getBitmap(key);
-                if (picture != null) break;
-            }
-        }
+        Bitmap picture = md == null ? null : md.getBitmap(MediaMetadata.METADATA_KEY_ART);
+        if (picture == null && md != null) picture = md.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
+        if (picture == null && md != null) picture = md.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON);
         // Metadata comes again with every state change; scale a new picture only when it changed.
-        if (picture != null && (picture != artSource || !pkg.equals(artPkg))) {
-            art.setImageBitmap(squareThumb(picture, (int) (44 * density)));
-        } else if (picture == null && (artSource != null || !pkg.equals(artPkg))) {
-            Drawable icon = null;
-            try {
-                // The square icon: a wide banner cropped to a square cuts the app's name off.
-                icon = activity.getPackageManager().getApplicationIcon(pkg);
-            } catch (Exception ignored) {
-                // No picture: the card shows the title alone.
+        if (picture != artSource || !pkg.equals(artPkg)) {
+            if (picture != null) {
+                // A centre square at the card's size, so a 1000 px cover isn't kept to be drawn at 44 dp.
+                int side = Math.min(picture.getWidth(), picture.getHeight());
+                Bitmap square = Bitmap.createBitmap(picture, (picture.getWidth() - side) / 2,
+                        (picture.getHeight() - side) / 2, side, side);
+                int size = (int) (44 * density);
+                art.setImageBitmap(side > size ? Bitmap.createScaledBitmap(square, size, size, true) : square);
+            } else {
+                try {
+                    // The square icon: a wide banner cropped to a square cuts the app's name off.
+                    art.setImageDrawable(pm.getApplicationIcon(pkg));
+                } catch (Exception e) {
+                    art.setImageDrawable(null);
+                }
             }
-            art.setImageDrawable(icon);
         }
         artSource = picture;
         artPkg = pkg;
     }
 
     private static String text(MediaMetadata md, String key) {
-        if (md == null) return null;
-        CharSequence t = md.getText(key);
+        CharSequence t = md != null ? md.getText(key) : null;
         return t != null ? t.toString() : null;
     }
 
-    /** A centre square of the artwork at the card's size, so a 1000 px cover isn't drawn at 44 dp. */
-    private static Bitmap squareThumb(Bitmap src, int size) {
-        int side = Math.min(src.getWidth(), src.getHeight());
-        if (side <= 0) return src;
-        int x = (src.getWidth() - side) / 2;
-        int y = (src.getHeight() - side) / 2;
-        Bitmap square = side == src.getWidth() && side == src.getHeight() ? src : Bitmap.createBitmap(src, x, y, side, side);
-        return side > size ? Bitmap.createScaledBitmap(square, size, size, true) : square;
+    private void show(MediaController session) {
+        shown = session;
+        place();
     }
 
     /**
      * Shows the card just above the dock when there is a session, room under the top bar, and the grid
-     * sits at its top; otherwise fades it out. The top shelf name is shortened so it never runs under it.
+     * sits at its top; otherwise hides it. The top shelf name is shortened so it never runs under it.
      */
     private void place() {
-        boolean want = hasSession && NowPlaying.working() && !grid.canScrollVertically(-1) && grid.getHeight() > 0;
+        boolean want = shown != null && !broken && !grid.canScrollVertically(-1) && grid.getHeight() > 0;
         float top = 0;
         if (want) {
-            if (card.getVisibility() != View.VISIBLE) {
-                card.measure(View.MeasureSpec.makeMeasureSpec(root.getWidth(), View.MeasureSpec.AT_MOST),
-                        View.MeasureSpec.makeMeasureSpec(root.getHeight(), View.MeasureSpec.AT_MOST));
-            }
-            int h = card.getVisibility() == View.VISIBLE && card.getHeight() > 0 ? card.getHeight() : card.getMeasuredHeight();
-            Rect g = new Rect(0, 0, grid.getWidth(), grid.getHeight());
+            card.measure(View.MeasureSpec.makeMeasureSpec(root.getWidth(), View.MeasureSpec.AT_MOST),
+                    View.MeasureSpec.makeMeasureSpec(root.getHeight(), View.MeasureSpec.AT_MOST));
+            Rect g = new Rect();
+            grid.getDrawingRect(g);
             root.offsetDescendantRectToMyCoords(grid, g);
-            Rect bar = new Rect(0, 0, topBar.getWidth(), topBar.getHeight());
+            Rect bar = new Rect();
+            topBar.getDrawingRect(bar);
             root.offsetDescendantRectToMyCoords(topBar, bar);
-            float dockTop = g.top + grid.getPaddingTop();
-            top = dockTop - 22 * density - h;
+            top = g.top + grid.getPaddingTop() - 22 * density - card.getMeasuredHeight();
             want = top >= bar.bottom + 14 * density;   // no room with rows under the dock: leave it out
         }
         if (want) {
             card.setY(top);
+            // The name and the card sit at opposite ends of the row (mirrored in right-to-left).
+            Rect hero = new Rect();
+            heroName.getDrawingRect(hero);
+            root.offsetDescendantRectToMyCoords(heroName, hero);
+            int cardSpan = ((FrameLayout.LayoutParams) card.getLayoutParams()).getMarginEnd() + card.getMeasuredWidth();
+            int room = root.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL
+                    ? hero.right - cardSpan : root.getWidth() - cardSpan - hero.left;
+            heroName.setMaxWidth(Math.max(0, room - (int) (24 * density)));
             if (!visible) {
                 visible = true;
                 card.setVisibility(View.VISIBLE);
-                if (animations) card.animate().alpha(1f).setDuration(240).start();
-                else card.setAlpha(1f);
             }
-            card.post(() -> {
-                Rect c = new Rect(0, 0, card.getWidth(), card.getHeight());
-                root.offsetDescendantRectToMyCoords(card, c);
-                Rect hero = new Rect(0, 0, heroName.getWidth(), heroName.getHeight());
-                root.offsetDescendantRectToMyCoords(heroName, hero);
-                // The name and the card sit at opposite ends of the row (mirrored in right-to-left).
-                int room = c.left > hero.left ? c.left - hero.left : hero.right - c.right;
-                heroName.setMaxWidth(Math.max(0, room - (int) (24 * density)));
-            });
         } else if (visible) {
             visible = false;
-            if (card.hasFocus()) host.focusDockEnd();
-            if (animations) {
-                card.animate().alpha(0f).setDuration(180).withEndAction(() -> {
-                    if (!visible) card.setVisibility(View.GONE);
-                }).start();
-            } else {
-                card.setAlpha(0f);
-                card.setVisibility(View.GONE);
-            }
+            if (card.hasFocus()) home.focusDockEnd();
+            card.setVisibility(View.GONE);
             heroName.setMaxWidth(Integer.MAX_VALUE);
         }
     }
 
-    /** Hold OK on the card: the app's own player screen, or failing that its launcher entry. */
-    private void openApp() {
-        MediaController c = shown;
-        if (c == null) return;
-        PendingIntent pi = c.getSessionActivity();
-        if (pi != null) {
-            try {
-                if (Build.VERSION.SDK_INT >= 34) {
-                    // Android 14 lets a foreground app start another app's PendingIntent only when it says so.
-                    ActivityOptions o = ActivityOptions.makeBasic()
-                            .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
-                    pi.send(activity, 0, null, null, null, null, o.toBundle());
-                } else {
-                    pi.send();
-                }
-                return;
-            } catch (PendingIntent.CanceledException ignored) {
-                // Fall back to the app's launcher entry.
-            }
+    // ---- listeners ------------------------------------------------------------------------------------
+
+    @Override
+    public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+        // The card itself: a new title changed its width while it has focus, so refit the highlight.
+        if (v == card) {
+            if (card.hasFocus()) home.glassOnto(card, FOCUS_SCALE, 16 * density);
+        } else {
+            grid.post(this);   // the grid: after the layout settles, pick and place again
         }
-        Intent i = activity.getPackageManager().getLeanbackLaunchIntentForPackage(c.getPackageName());
-        if (i == null) i = activity.getPackageManager().getLaunchIntentForPackage(c.getPackageName());
-        if (i != null) host.open(i);
+    }
+
+    @Override
+    public void onScrollChanged() {
+        if (shown != null) place();
+    }
+
+    /** Focus looks like a tile's: the card lifts and the glass highlight springs onto it. */
+    @Override
+    public void onFocusChange(View v, boolean focused) {
+        float s = focused ? FOCUS_SCALE : 1f;
+        if (animations) v.animate().scaleX(s).scaleY(s).setDuration(180).start();
+        else {
+            v.setScaleX(s);
+            v.setScaleY(s);
+        }
+        if (focused) home.glassOnto(v, FOCUS_SCALE, 16 * density);
+        else v.setFocusable(false);
+    }
+
+    /** OK: play or pause. */
+    @Override
+    public void onClick(View v) {
+        try {
+            MediaController c = shown;
+            if (c == null) return;
+            PlaybackState st = c.getPlaybackState();
+            if (st != null && isActive(st.getState())) c.getTransportControls().pause();
+            else c.getTransportControls().play();
+        } catch (Exception | LinkageError e) {
+            fail(e);
+        }
+    }
+
+    /** Left/Right: previous/next, one per press. Down: back to the dock's last app. */
+    @Override
+    public boolean onKey(View v, int keyCode, KeyEvent event) {
+        boolean left = keyCode == KeyEvent.KEYCODE_DPAD_LEFT;
+        if (!left && keyCode != KeyEvent.KEYCODE_DPAD_RIGHT && keyCode != KeyEvent.KEYCODE_DPAD_DOWN) return false;
+        if (event.getAction() != KeyEvent.ACTION_DOWN || event.getRepeatCount() > 0) return true;
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            home.focusDockEnd();
+            return true;
+        }
+        try {
+            MediaController c = shown;
+            if (c != null && left) c.getTransportControls().skipToPrevious();
+            else if (c != null) c.getTransportControls().skipToNext();
+        } catch (Exception | LinkageError e) {
+            fail(e);
+        }
+        return true;
+    }
+
+    /** Hold OK: the app, as its tile opens it. */
+    @Override
+    public boolean onLongClick(View v) {
+        MediaController c = shown;
+        if (c == null) return true;
+        PackageManager pm = home.getPackageManager();
+        Intent i = pm.getLeanbackLaunchIntentForPackage(c.getPackageName());
+        if (i == null) i = pm.getLaunchIntentForPackage(c.getPackageName());
+        if (i != null) home.open(i);
+        return true;
     }
 }

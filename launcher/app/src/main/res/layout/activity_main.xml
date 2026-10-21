@@ -2,8 +2,8 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
-    <!-- No background here: MainActivity sets the theme colour, or none under a wallpaper. -->
+    android:layout_height="match_parent"
+    android:background="#FF000000">
 
     <!-- Time-of-day backdrop, drawn once a minute (config.xml sky_intensity; 0 keeps it hidden). -->
     <com.gathin.tvhome.SkyView
@@ -28,7 +28,6 @@
         android:id="@+id/ambient"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:forceHasOverlappingRendering="false"
         android:alpha="0" />
 
     <!-- Race-weekend panel (a theme's race_calendar, see RaceWeekend): in the free space under the clock,
@@ -280,10 +279,9 @@
                  row; gone, it takes no space. -->
             <TextView
                 android:id="@+id/stats"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_below="@id/leftBlock"
                 android:layout_alignStart="@id/leftBlock"
-                android:layout_alignEnd="@id/leftBlock"
                 android:gravity="left"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
@@ -312,7 +310,6 @@
                     style="@style/TopButton"
                     android:text="@string/inputs"
                     android:drawableStart="@drawable/ic_input"
-                    android:nextFocusRight="@+id/btnWifi"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
@@ -323,8 +320,6 @@
                     android:ellipsize="end"
                     android:text="@string/wifi"
                     android:drawableStart="@drawable/ic_wifi"
-                    android:nextFocusLeft="@+id/btnInputs"
-                    android:nextFocusRight="@+id/btnSettings"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
@@ -335,11 +330,18 @@
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
+                    android:id="@+id/btnLibraryTop"
+                    style="@style/TopButtonIcon"
+                    android:visibility="gone"
+                    android:contentDescription="@string/app_library"
+                    android:drawableStart="@drawable/ic_apps"
+                    android:nextFocusDown="@+id/grid" />
+
+                <TextView
                     android:id="@+id/btnSettings"
                     style="@style/TopButton"
                     android:text="@string/settings"
                     android:drawableStart="@drawable/ic_settings"
-                    android:nextFocusLeft="@+id/btnWifi"
                     android:nextFocusDown="@+id/grid" />
             </LinearLayout>
         </RelativeLayout>
@@ -365,8 +367,9 @@
         </FrameLayout>
     </LinearLayout>
 
-    <!-- Now playing (now_playing): the media session of the app playing in the background, at the end of the
-         row above the dock and placed in code (NowPlayingCard). Hidden until there is one. -->
+    <!-- The single floating glass highlight that springs between tiles. -->
+    <!-- Now playing (now_playing): the media session of the app playing in the background, at the end of
+         the row above the dock, placed in code (NowPlayingCard). Hidden until there is one. -->
     <LinearLayout
         android:id="@+id/nowPlaying"
         android:layout_width="wrap_content"
@@ -376,12 +379,10 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="8dp"
-        android:background="@drawable/now_playing_bg"
-        android:focusable="true"
+        android:focusable="false"
         android:clickable="true"
         android:longClickable="true"
-        android:nextFocusUp="@+id/btnSettings"
-        android:alpha="0"
+        android:nextFocusUp="@id/btnSettings"
         android:visibility="gone">
 
         <ImageView
@@ -432,7 +433,6 @@
             android:importantForAccessibility="no" />
     </LinearLayout>
 
-    <!-- The single floating glass highlight that springs between tiles. -->
     <com.gathin.tvhome.GlassView
         android:id="@+id/glass"
         android:layout_width="10dp"

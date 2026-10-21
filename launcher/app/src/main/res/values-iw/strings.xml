@@ -87,7 +87,6 @@
         <item quantity="two">שתי אפליקציות</item>
         <item quantity="other">%1$d אפליקציות</item>
     </plurals>
-    <string name="now_playing_description">מתנגן עכשיו: OK מנגן או משהה, ימינה ושמאלה מדלגים, לחיצה ארוכה על OK פותחת את האפליקציה</string>
     <string name="greeting_with_name">%1$s, %2$s</string>
     <string name="rows_below_dock_label">שורות מתחת לעגינה</string>
     <string name="wallpaper_label">טפט</string>

@@ -71,7 +71,6 @@
         <item quantity="one">%1$d app</item>
         <item quantity="other">%1$d apps</item>
     </plurals>
-    <string name="now_playing_description">A reproduzir: OK reproduz ou pausa, esquerda e direita saltam, mantenha OK para abrir a app</string>
     <string name="greeting_with_name">%1$s, %2$s</string>
 
     <!-- Launcher settings, quick settings panel, race-weekend panel and cinematic shelf. -->

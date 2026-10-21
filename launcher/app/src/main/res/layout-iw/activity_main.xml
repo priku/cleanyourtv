@@ -283,10 +283,9 @@
                  row; gone, it takes no space. -->
             <TextView
                 android:id="@+id/stats"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_below="@id/leftBlock"
                 android:layout_alignStart="@id/leftBlock"
-                android:layout_alignEnd="@id/leftBlock"
                 android:gravity="right"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
@@ -315,7 +314,14 @@
                     style="@style/TopButton"
                     android:text="@string/settings"
                     android:drawableStart="@drawable/ic_settings"
-                    android:nextFocusRight="@+id/btnWifi"
+                    android:nextFocusDown="@+id/grid" />
+
+                <TextView
+                    android:id="@+id/btnLibraryTop"
+                    style="@style/TopButtonIcon"
+                    android:visibility="gone"
+                    android:contentDescription="@string/app_library"
+                    android:drawableStart="@drawable/ic_apps"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
@@ -333,8 +339,6 @@
                     android:ellipsize="end"
                     android:text="@string/wifi"
                     android:drawableStart="@drawable/ic_wifi"
-                    android:nextFocusLeft="@+id/btnSettings"
-                    android:nextFocusRight="@+id/btnInputs"
                     android:nextFocusDown="@+id/grid" />
 
                 <TextView
@@ -342,7 +346,6 @@
                     style="@style/TopButton"
                     android:text="@string/inputs"
                     android:drawableStart="@drawable/ic_input"
-                    android:nextFocusLeft="@+id/btnWifi"
                     android:nextFocusDown="@+id/grid" />
             </LinearLayout>
         </RelativeLayout>
@@ -368,24 +371,22 @@
         </FrameLayout>
     </LinearLayout>
 
-    <!-- Now playing (now_playing): the media session of the app playing in the background, on the left above
-         the dock under Settings (this layout's top bar and dock run right to left), placed in code
-         (NowPlayingCard). Hidden until there is one. -->
+    <!-- The single floating glass highlight that springs between tiles. -->
+    <!-- Now playing (now_playing): the media session of the app playing in the background, at the end of
+         the row above the dock, placed in code (NowPlayingCard). Hidden until there is one. -->
     <LinearLayout
         android:id="@+id/nowPlaying"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="start|top"
-        android:layout_marginStart="56dp"
+        android:layout_gravity="end|top"
+        android:layout_marginEnd="56dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="8dp"
-        android:background="@drawable/now_playing_bg"
-        android:focusable="true"
+        android:focusable="false"
         android:clickable="true"
         android:longClickable="true"
-        android:nextFocusUp="@+id/btnSettings"
-        android:alpha="0"
+        android:nextFocusUp="@id/btnSettings"
         android:visibility="gone">
 
         <ImageView
@@ -436,7 +437,6 @@
             android:importantForAccessibility="no" />
     </LinearLayout>
 
-    <!-- The single floating glass highlight that springs between tiles. -->
     <com.gathin.tvhome.GlassView
         android:id="@+id/glass"
         android:layout_width="10dp"

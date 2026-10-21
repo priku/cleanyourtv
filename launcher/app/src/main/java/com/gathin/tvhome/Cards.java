@@ -180,7 +180,7 @@ final class Cards {
      * Every valid card installed on this TV, with its state under the given records. One cheap
      * PackageManager query when no app declares a card; the app list is only walked when one does.
      * hidden is the launcher's hidden_apps as in force (config.xml or a theme overlay): no card for those.
-     * The decision records are only read when some app declares a card; leanback is the launcher's
+     * The decision records are only read when some app declares a card, and leanback is the launcher's
      * own LEANBACK_LAUNCHER query, so the app list isn't queried twice.
      */
     static List<Card> discover(Context ctx, Set<String> hidden, Supplier<Map<String, Record>> recordSource,

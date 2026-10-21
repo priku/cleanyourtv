@@ -84,6 +84,5 @@
         <item quantity="many">%1$d aplikacji</item>
         <item quantity="other">%1$d aplikacji</item>
     </plurals>
-    <string name="now_playing_description">Teraz odtwarzane: OK odtwarza lub wstrzymuje, lewo i prawo przewijają, przytrzymaj OK, by otworzyć aplikację</string>
     <string name="greeting_with_name">%1$s, %2$s</string>
 </resources>

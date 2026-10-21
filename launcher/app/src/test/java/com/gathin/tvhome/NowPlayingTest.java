@@ -4,80 +4,60 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import org.junit.After;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-
-/** Which session the Now playing card shows, what its two lines say, and its guard. */
+/** Which session the Now playing card shows and what its two lines say. */
 public class NowPlayingTest {
     private static final String SELF = "com.gathin.tvhome";
 
-    @After
-    public void tearDown() {
-        NowPlaying.reset();
-    }
-
     @Test
     public void playingBeatsPausedWhateverTheOrder() {
-        assertEquals(1, NowPlaying.choose(new int[]{NowPlaying.STATE_PAUSED, NowPlaying.STATE_PLAYING},
+        assertEquals(1, NowPlayingCard.choose(new int[]{NowPlayingCard.STATE_PAUSED, NowPlayingCard.STATE_PLAYING},
                 new String[]{"a", "b"}, SELF));
-        assertEquals(0, NowPlaying.choose(new int[]{NowPlaying.STATE_BUFFERING, NowPlaying.STATE_PLAYING},
+        assertEquals(0, NowPlayingCard.choose(new int[]{6, NowPlayingCard.STATE_PLAYING},
                 new String[]{"a", "b"}, SELF));
     }
 
     @Test
     public void firstPausedWhenNothingPlays() {
-        assertEquals(1, NowPlaying.choose(new int[]{NowPlaying.STATE_STOPPED, NowPlaying.STATE_PAUSED, NowPlaying.STATE_PAUSED},
+        assertEquals(1, NowPlayingCard.choose(new int[]{1, NowPlayingCard.STATE_PAUSED, NowPlayingCard.STATE_PAUSED},
                 new String[]{"a", "b", "c"}, SELF));
     }
 
     @Test
     public void nothingToShow() {
-        assertEquals(-1, NowPlaying.choose(new int[0], new String[0], SELF));
-        assertEquals(-1, NowPlaying.choose(new int[]{NowPlaying.STATE_NONE, NowPlaying.STATE_STOPPED, NowPlaying.STATE_ERROR},
+        assertEquals(-1, NowPlayingCard.choose(new int[0], new String[0], SELF));
+        assertEquals(-1, NowPlayingCard.choose(new int[]{0, 1, 7},
                 new String[]{"a", "b", "c"}, SELF));
     }
 
     @Test
     public void skipsTheLauncherItself() {
-        assertEquals(1, NowPlaying.choose(new int[]{NowPlaying.STATE_PLAYING, NowPlaying.STATE_PAUSED},
+        assertEquals(1, NowPlayingCard.choose(new int[]{NowPlayingCard.STATE_PLAYING, NowPlayingCard.STATE_PAUSED},
                 new String[]{SELF, "b"}, SELF));
     }
 
     @Test
     public void activeStates() {
-        assertTrue(NowPlaying.isActive(NowPlaying.STATE_SKIPPING_TO_NEXT));
-        assertFalse(NowPlaying.isActive(NowPlaying.STATE_PAUSED));
-        assertFalse(NowPlaying.isActive(NowPlaying.STATE_ERROR));
+        assertTrue(NowPlayingCard.isActive(10));
+        assertFalse(NowPlayingCard.isActive(NowPlayingCard.STATE_PAUSED));
+        assertFalse(NowPlayingCard.isActive(7));
     }
 
     @Test
     public void titleFallsBack() {
-        assertEquals("Song", NowPlaying.title(" Song ", "Display", "YouTube Music"));
-        assertEquals("Display", NowPlaying.title("", "Display", "YouTube Music"));
-        assertEquals("YouTube Music", NowPlaying.title(null, " ", "YouTube Music"));
+        assertEquals("Song", NowPlayingCard.title(" Song ", "Display", "YouTube Music"));
+        assertEquals("Display", NowPlayingCard.title("", "Display", "YouTube Music"));
+        assertEquals("YouTube Music", NowPlayingCard.title(null, " ", "YouTube Music"));
     }
 
     @Test
     public void subtitleJoinsArtistAndApp() {
-        assertEquals("Artist · YouTube Music", NowPlaying.subtitle("Artist", "Album", "YouTube Music", "Song"));
-        assertEquals("Album · Spotify", NowPlaying.subtitle(null, "Album", "Spotify", "Song"));
-        assertEquals("Spotify", NowPlaying.subtitle("", null, "Spotify", "Song"));
-        assertEquals("Artist", NowPlaying.subtitle("Artist", null, "Spotify", "Spotify"));
-        assertEquals("", NowPlaying.subtitle(null, null, "Spotify", "Spotify"));
+        assertEquals("Artist · YouTube Music", NowPlayingCard.subtitle("Artist", "Album", "YouTube Music", "Song"));
+        assertEquals("Album · Spotify", NowPlayingCard.subtitle(null, "Album", "Spotify", "Song"));
+        assertEquals("Spotify", NowPlayingCard.subtitle("", null, "Spotify", "Song"));
+        assertEquals("Artist", NowPlayingCard.subtitle("Artist", null, "Spotify", "Spotify"));
+        assertEquals("", NowPlayingCard.subtitle(null, null, "Spotify", "Spotify"));
     }
 
-    @Test
-    public void guardSwitchesOffOnce() {
-        List<Throwable> reported = new ArrayList<>();
-        NowPlaying.reporter = reported::add;
-        assertEquals("fallback", NowPlaying.run(() -> {
-            throw new SecurityException("no listener");
-        }, "fallback"));
-        assertFalse(NowPlaying.working());
-        assertEquals("fallback", NowPlaying.run(() -> "value", "fallback"));
-        assertEquals(1, reported.size());
-    }
 }
