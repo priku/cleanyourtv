@@ -98,6 +98,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean rtlAppGrid;
     private static final long MINUTE_MS = 60_000L;
     private static final long STATS_MS = 10_000L;
+    /**
+     * 2025-01-01. TVs without a clock battery boot at the epoch (08:00 in China) and keep it until network
+     * time arrives; the clock, date and greeting stay hidden before then.
+     */
+    private static final long TIME_VALID_AFTER_MS = 1_735_689_600_000L;
     private String liveTvPkg;
     private String liveTvAction;
     private String inputAction;
@@ -133,6 +138,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean animations;
     private boolean advancedEffects;
     private TextView greeting;
+    private View clockBlock;
     private View btnInputs;
     private TextView btnWifi;
     private TextView shamsiDate;
@@ -275,6 +281,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             reloadApps(false, true);
         }
     };
+    // Right after boot the clock is often wrong until network time arrives; don't wait a minute to catch up.
+    private final IntentFilter timeFilter = new IntentFilter(Intent.ACTION_TIME_CHANGED);
+    private final BroadcastReceiver timeReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            updateClockVisibility();
+        }
+    };
     private final Runnable minuteTick = new Runnable() {
         @Override
         public void run() {
@@ -291,8 +305,6 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        // The root (or the wallpaper) paints every pixel; a window background under it is a wasted full-screen fill.
-        getWindow().setBackgroundDrawable(null);
         density = getResources().getDisplayMetrics().density;
         // config.xml, overlaid by config.json from a pushed theme (see Config and tools/theme.sh).
         Config cfg = Config.load(this);
@@ -313,6 +325,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         root = findViewById(R.id.root);
         root.setBackgroundColor(cfg.backgroundColor);
+        // root fills the window with an opaque colour (Config keeps background_color opaque), so the window's own
+        // black under it is a second full-screen fill on every frame for nothing. The starting window still uses
+        // the theme's background, so launch looks the same.
+        getWindow().setBackgroundDrawable(null);
         wallpaperPlayer = new WallpaperPlayer(this, root, cfg);
         sky = findViewById(R.id.sky);
         sky.setIntensity(cfg.skyIntensity);
@@ -336,6 +352,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         // still follows the dock.
         if (!cfg.dockTitle) hero.setVisibility(View.GONE);
         greeting = findViewById(R.id.greeting);
+        clockBlock = findViewById(R.id.leftBlock);
         greetingColor = greeting.getCurrentTextColor();
         btnWifi = findViewById(R.id.btnWifi);
         shamsiDate = findViewById(R.id.shamsiDate);
@@ -570,6 +587,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         packageFilter.addAction(Intent.ACTION_PACKAGE_REMOVED);
         packageFilter.addAction(Intent.ACTION_PACKAGE_CHANGED);
         packageFilter.addDataScheme("package");
+        timeFilter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
         // Registered for the activity's life, not just while resumed: a package that changes while
         // another app is in front marks the tiles stale, so returning Home rebuilds only when needed.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -613,6 +631,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         lastFocused = 0;
         lastFocusedKey = adapter.getItemCount() > 0 ? adapter.keyAt(0) : null;
         rebuildOnResume = true;
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(timeReceiver, timeFilter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(timeReceiver, timeFilter);
+        }
+        updateClockVisibility();
     }
 
     @Override
@@ -792,6 +821,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         adapter.clear();
         tilesStale = true;
         tilesShown = false;
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        unregisterReceiver(timeReceiver);
+        handler.removeCallbacks(clockCheck);
     }
 
     @Override
@@ -1192,9 +1228,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
             showHero(position, scroll ? r.top - dy : r.top);
         } else {
-            // A plain grid (dock_row false) has no dock to carry the glow, so it follows every tile there.
-            if (dockRow) hideHero();
-            else showGlowOnly(position);
+            // Below the dock (or in a plain grid) the glow follows the tile without the big name; letting it
+            // fade out left the grid on plain black.
+            showGlowOnly(position);
             // Scroll just enough so the whole glass (not only the tile) is visible.
             revealRect.set(0, -(int) pad * 2, item.getWidth(), item.getHeight() + (int) pad);
             grid.requestChildRectangleOnScreen(item, revealRect, reducedMotion);
@@ -1467,8 +1503,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     /**
-     * dock_row false: the glow behind the grid takes the focused tile's colour; the big name above the dock does not
-     * show (every tile has its name underneath).
+     * Grid tiles (every tile with dock_row false): the glow behind the grid takes the focused tile's colour; the big
+     * name above the dock does not show (every grid tile has its name underneath).
      */
     private void showGlowOnly(int position) {
         int color = adapter.ambientColorAt(position);
@@ -1911,6 +1947,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     // ---- top bar ---------------------------------------------------------------------------------
+
+    /** Some TVs (Coocaa OS) set the network time without ACTION_TIME_CHANGED, so keep checking until it is valid. */
+    private final Runnable clockCheck = this::updateClockVisibility;
+
+    private void updateClockVisibility() {
+        boolean valid = System.currentTimeMillis() >= TIME_VALID_AFTER_MS;
+        clockBlock.setVisibility(valid ? View.VISIBLE : View.INVISIBLE);
+        handler.removeCallbacks(clockCheck);
+        if (valid) {
+            updateGreeting();
+        } else {
+            handler.postDelayed(clockCheck, 1_000L);
+        }
+    }
 
     private void updateGreeting() {
         int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
