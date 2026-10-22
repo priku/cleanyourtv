@@ -18,6 +18,7 @@ powershell -ExecutionPolicy Bypass -File tools\theme.ps1 -TvHost 192.168.1.50 th
 | `aurora/` | A dark aurora wallpaper (teal and violet on navy, darker at the bottom) with a matching background colour | <img src="aurora/screenshot.jpg" width="320" alt="aurora theme"> |
 | `dussehra/` | Festive skin for Dussehra (ends 21 Oct 2026): a marigold toran, a faint gold rangoli, a diya for Wi-Fi, a bell for Inputs, a marigold for Settings and a petal shower | <img src="dussehra/screenshot.jpg" width="320" alt="dussehra theme"> |
 | `glass/` | Dark navy wallpaper with soft teal and violet light, the cinematic top shelf, a frosted-glass dock, icon-only buttons and the focus glow in the app's colour, gliding without overshoot | <img src="glass/screenshot.jpg" width="320" alt="glass theme"> |
+| `ruska/` | A Finnish autumn ("ruska") dusk over a lake: spruce shoreline, birches in autumn colour, a few falling leaves, drawn in code by `make_wallpaper.py`. The app-colour glow stays off the picture so the autumn colours keep their own light; the dock is 70% opaque so the lake shows through, and the focus glows in the app's colour without overshoot | <img src="ruska/screenshot.jpg" width="320" alt="ruska theme"> |
 | `scenes/` | 14 dark illustrated landscapes in `wallpapers/`, a new one every hour; drawn from code by `tools/scenes_wallpapers.py` | <img src="scenes/screenshot.jpg" width="320" alt="scenes theme"> |
 | `six-columns/` | Six smaller tiles per row and one grid row visible under the dock | <img src="six-columns/screenshot.jpg" width="320" alt="six-columns theme"> |
 
@@ -81,7 +82,6 @@ is ignored, and a file that doesn't parse is ignored as a whole, so a theme can 
 | `wallpaper_dim` | 0 to 90 | Black overlay over wallpaper images, in percent; 0 by default and no shade view at all |
 | `dock_opacity` | 30 to 100 | Opacity of the dock's band, in percent, so a wallpaper shows through it; 100 by default (the cinematic shelf keeps its own translucent band). Launcher settings on the TV offers 100, 70, 50 or 30, which wins until the next theme push or Follow theme |
 | `wallpaper_captions` | bool | With a rotating collection, the shown picture's name under the top-right buttons, from `wallpapers/captions.txt` (`001.jpg<TAB>Dusk over the peaks`, one per line); a picture without a line shows no name (`false` by default) |
-| `night_from`, `night_until` | `HH:MM` | When the theme's `wallpaper_night.jpg` replaces the wallpaper or collection; 18:00 and 06:00 by default |
 | `festival` | string | Turns on a festive skin: the network pill becomes a diya whose flame follows the connection, Inputs a temple bell, Settings a marigold, and the first Home of the day gets a petal shower. `dussehra` and `diwali` have built-in greetings |
 | `festival_until` | `YYYY-MM-DD` | Last day the festive skin shows; it switches itself off after that. A malformed date turns it off |
 | `greeting` | string | Replaces the time-of-day greeting while the festive skin is on |
@@ -140,18 +140,6 @@ The original system idle screensaver is left unchanged.
 On the TV, Launcher settings has a Wallpaper row: pick one picture from the collection (or the theme's
 `wallpaper.jpg`), or None. A pick shows that one picture and stops the rotation until you choose Theme
 default, press Follow theme, or push a theme again.
-
-### Night picture
-
-A `wallpaper_night.jpg` beside `config.json` takes over from `night_from` to `night_until` (`"HH:MM"`, 18:00
-and 06:00 unless the theme sets them; a window across midnight wraps), in front of `wallpaper.jpg` or a
-collection. Home checks on the minute tick that already updates the clock and when it comes back to the
-front, decodes the night picture on the same worker thread, and leaves the rotation state alone, so the day
-collection carries on from its last image in the morning. Without the file nothing changes.
-
-```json
-{ "wallpaper": true, "night_from": "19:00", "night_until": "06:30" }
-```
 
 ## Reduced motion
 

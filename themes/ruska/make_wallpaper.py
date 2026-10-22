@@ -5,6 +5,7 @@ or fonts are used, so the picture is original and can be redrawn by anyone.
 
     python3 make_wallpaper.py            # needs Pillow and NumPy; seed 1409 gives the same picture
     python3 make_wallpaper.py --night    # wallpaper_night.jpg: the same shore under a crescent moon
+                                         # (not shipped: the launcher has no night picture)
 
 Kept dark on purpose (see themes/README.md, Wallpapers): the clock, the hero name and the dock band
 are designed for black, so the top corners and the bottom third stay close to it.

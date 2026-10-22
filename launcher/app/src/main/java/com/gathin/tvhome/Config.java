@@ -143,10 +143,6 @@ final class Config {
      * invalid values keep the historical shuffle so existing themes rotate exactly as before.
      */
     final String wallpaperOrder;
-    /** The theme's wallpaper_night.jpg, or null; it replaces the wallpaper from nightFrom to nightUntil. */
-    final File wallpaperNight;
-    /** Minutes after midnight (config.json night_from / night_until, "HH:MM"); 18:00 and 06:00 by default. */
-    final int nightFrom, nightUntil;
     /** Whether the overlay file was present and parsed. */
     final boolean overlayApplied;
     /** Festive skin from a theme (festival, festival_until, greeting, accent_color); {@link Festival#NONE} if none. */
@@ -180,7 +176,7 @@ final class Config {
                    boolean shamsiDate, String greetingName, boolean moduleCards, boolean nowPlaying, boolean reducedMotion, boolean bootToLiveTv, boolean dockTitle, boolean dockRow, boolean topMenu, boolean reorderButton, boolean showNetworkPill, boolean showInputsPill, boolean iconOnlyButtons, boolean libraryButton, int wifiLabelWidth, boolean alwaysShowNames, boolean wallpaperTrueColor, boolean focusOvershoot, String vpnApp,
                    boolean showHomeSettingsShortcut, boolean showStats, boolean appLibrary, int backgroundColor, int skyIntensity,
                    int[] settingsKeycodes, boolean settingsKeyPanel, boolean restoreKeyServices, boolean wallpaperEnabled, File wallpaper, List<File> wallpapers,
-                   int wallpaperRotationMinutes, int wallpaperDim, int dockOpacity, String wallpaperOrder, File wallpaperNight, int nightFrom, int nightUntil, boolean overlayApplied,
+                   int wallpaperRotationMinutes, int wallpaperDim, int dockOpacity, String wallpaperOrder, boolean overlayApplied,
                    Festival festival, int[] inputKeycodes, List<String> appKeys, String stockHomeRedirect,
                    List<RaceWeekend.Race> raceCalendar, boolean cinematicHome, boolean ambientGlow, boolean appGlow, int homeIdleClockMinutes,
                    boolean keyFilter, boolean dockGlass, String glowStyle, boolean wallpaperCaptions,
@@ -243,9 +239,6 @@ final class Config {
         this.wallpaperDim = wallpaperDim;
         this.dockOpacity = dockOpacity;
         this.wallpaperOrder = wallpaperOrder;
-        this.wallpaperNight = wallpaperNight;
-        this.nightFrom = nightFrom;
-        this.nightUntil = nightUntil;
         this.overlayApplied = overlayApplied;
         this.festival = festival;
         this.raceCalendar = Collections.unmodifiableList(raceCalendar);
@@ -443,14 +436,6 @@ final class Config {
                 wallpaperEnabled = true;
             }
         }
-        // An optional night picture, only next to a day wallpaper or collection.
-        File wallpaperNight = !wallpapers.isEmpty() ? new File(dir, NightWallpaper.FILE_NAME) : null;
-        if (wallpaperNight != null && !(wallpaperNight.isFile() && wallpaperNight.length() > 0)) wallpaperNight = null;
-        int nightFrom = NightWallpaper.DEFAULT_FROM, nightUntil = NightWallpaper.DEFAULT_UNTIL;
-        if (json != null) {
-            nightFrom = NightWallpaper.clock(string(json, "night_from", ""), nightFrom);
-            nightUntil = NightWallpaper.clock(string(json, "night_until", ""), nightUntil);
-        }
         // A festive skin comes only from a theme; config.xml has no festival.
         Festival festival = json == null ? Festival.NONE : Festival.parse(string(json, "festival", ""),
                 string(json, "festival_until", ""), string(json, "greeting", ""), string(json, "accent_color", ""));
@@ -461,7 +446,7 @@ final class Config {
                 Math.max(1, columns), Math.max(0, rowsBelow), animations, advancedEffects,
                 shamsi, greetingName, moduleCards, nowPlaying, reducedMotion, bootToLiveTv, dockTitle, dockRow, topMenu, reorderButton, showNetworkPill, showInputsPill, iconOnlyButtons, libraryButton, wifiLabelWidth, alwaysShowNames, wallpaperTrueColor, focusOvershoot, vpn, homeSettings, showStats, library, background,
                 Math.max(0, Math.min(100, skyIntensity)), settingsKeycodes, settingsKeyPanel, restoreKeyServices, wallpaperEnabled, wallpaper,
-                wallpapers, rotationMinutes, wallpaperDim, dockOpacity, wallpaperOrder, wallpaperNight, nightFrom, nightUntil, applied,
+                wallpapers, rotationMinutes, wallpaperDim, dockOpacity, wallpaperOrder, applied,
                 festival, inputKeycodes, appKeys, stockHomeRedirect, json == null ? Collections.emptyList() : raceCalendar(json), cinematic, ambientGlow, appGlow,
                 Math.max(0, idleClockMinutes), keyFilter, dockGlass, glowStyle, wallpaperCaptions, handleViewInputs);
     }
