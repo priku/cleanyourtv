@@ -20,7 +20,7 @@
     <string name="cant_open">%1$s ochilmadi</string>
     <string name="date_format">EEEE  d-MMMM</string>
     <string name="stats_cpu">Protsessor %1$d%%</string>
-    <string name="stats_memory">Xotira: %1$d MB boʻsh</string>
+    <string name="stats_memory">Xotira: %1$d / %2$d MB</string>
     <string name="stats_storage">Disk: %1$s boʻsh</string>
     <string name="dream_name">Soat</string>
     <string name="vpn">VPN</string>
@@ -29,6 +29,7 @@
     <string name="home_settings_help">CleanYourTV oʻrniga eski bosh ekranga qaytish uchun uni tanlang, CleanYourTV ga qaytish uchun esa CleanYourTV ni. Eski launcher yoqilgan boʻlishi va televizorda bosh ekran tanlash oynasi boʻlishi kerak; agar u oʻchirilgan boʻlsa, avval tiklash skriptini ishga tushiring.</string>
     <string name="launcher_settings">Launcher sozlamalari</string>
     <string name="columns_label">Qatordagi ilovalar</string>
+    <string name="dock_opacity_label">Dock paneli noshaffofligi</string>
     <string name="rows_below_dock_label">Dock ostidagi qatorlar</string>
     <string name="wallpaper_label">Fon rasmi</string>
     <string name="wallpaper_state">Fon rasmi: %1$s</string>

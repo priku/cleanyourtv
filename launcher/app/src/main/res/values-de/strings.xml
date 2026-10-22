@@ -22,12 +22,13 @@
     <!-- Two lines next to the clock: the long German weekday and month names do not fit on one. -->
     <string name="date_format_home">EEEE\nd. MMMM</string>
     <string name="stats_cpu">CPU %1$d%%</string>
-    <string name="stats_memory">Speicher %1$d MB frei</string>
+    <string name="stats_memory">Speicher %1$d / %2$d MB</string>
     <string name="stats_storage">Speicherplatz %1$s frei</string>
     <string name="dream_name">Uhr</string>
     <string name="input_key_service_description">Öffnet die Quellenauswahl, wenn die Input-Taste der Fernbedienung gedrückt wird.</string>
     <string name="launcher_settings">Launcher-Einstellungen</string>
     <string name="columns_label">Apps pro Zeile</string>
+    <string name="dock_opacity_label">Deckkraft der Dock-Leiste</string>
     <string name="animations_state">Animationen: %1$s</string>
     <string name="advanced_effects">Erweiterte Effekte</string>
     <string name="advanced_effects_state">Erweiterte Effekte: %1$s</string>

@@ -20,7 +20,7 @@
     <string name="cant_open">Nie można otworzyć: %1$s</string>
     <string name="date_format">EEEE  d MMMM</string>
     <string name="stats_cpu">CPU %1$d%%</string>
-    <string name="stats_memory">Pamięć %1$d MB wolne</string>
+    <string name="stats_memory">Pamięć %1$d / %2$d MB</string>
     <string name="stats_storage">Miejsce %1$s wolne</string>
     <string name="dream_name">Zegar</string>
     <string name="vpn">VPN</string>
@@ -51,6 +51,7 @@
     <string name="card_state_new_label">Nowa nazwa</string>
     <string name="launcher_settings">Ustawienia ekranu głównego</string>
     <string name="columns_label">Aplikacji w rzędzie</string>
+    <string name="dock_opacity_label">Krycie paska docka</string>
     <string name="animations_state">Animacje: %1$s</string>
     <string name="advanced_effects">Efekty zaawansowane</string>
     <string name="advanced_effects_state">Efekty zaawansowane: %1$s</string>
