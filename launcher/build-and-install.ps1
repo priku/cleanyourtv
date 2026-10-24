@@ -8,12 +8,14 @@
 #                             input_key_keycodes and app_keys; re-pass on every install
 #        [-HomeKeyService]    remotes whose Home button sends KEYCODE_ALL_APPS (Xiaomi sticks)
 #        [-RestoreKeyServices] grants WRITE_SECURE_SETTINGS for restore_key_services (helpers back after a force stop); revoked without it
+#        [-NowPlaying]        enable the notification listener the Now playing card needs (now_playing)
 param(
     [string]$TvHost = $env:TV_HOST,
     [string]$StockLauncher = '',
     [switch]$InputKeyService,
     [switch]$HomeKeyService,
     [switch]$RestoreKeyServices
+    [switch]$NowPlaying
 )
 $ErrorActionPreference = 'Stop'
 # Pipe plain UTF-8 to native commands; the default here prepends a BOM that corrupts the first command.
@@ -182,4 +184,13 @@ $out = ($step | & $py -I ..\tools\tv.py --batch) -join "`n"
 Write-Host $out
 # Only a line that is the marker and nothing else counts: tv.py --batch echoes the step, which contains it too.
 if (($out -split '\r?\n') -cnotcontains $mark) { throw "WRITE_SECURE_SETTINGS is not in the state this install asked for ($mark missing): $hint. The launcher is installed and is Home. Check by hand: tools\tv.py 'dumpsys package com.gathin.tvhome'" }
+# Now playing card: Android lists other apps' media sessions only to an enabled notification listener, and
+# that grant lets the launcher read every notification, so it is asked for (-NowPlaying), never automatic.
+# Android 8.0 has no `cmd notification allow_listener`, so the listener is also added to
+# enabled_notification_listeners when missing, and the result is checked.
+if ($NowPlaying) {
+    $l = 'com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener'
+    ('cmd notification allow_listener ' + $l + ' >/dev/null 2>&1; l=$(settings get secure enabled_notification_listeners); case "$l" in *' + $l + '*) ;; *) [ "$l" = null ] && l=; settings put secure enabled_notification_listeners "${l:+$l:}' + $l + '" ;; esac; case "$(settings get secure enabled_notification_listeners)" in *' + $l + '*) echo now-playing-granted ;; *) echo now-playing-not-granted ;; esac') |
+        & $py -I ..\tools\tv.py --batch
+}
 Write-Host 'Installed. Press Home on the remote to see it.'
