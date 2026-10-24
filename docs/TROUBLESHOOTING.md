@@ -1228,6 +1228,13 @@ Things that bit us or contributors, so they don't bite you. Commands use `tools/
   `examples/tcl-q7c-google-tv` saw it too). It happens when Wireless debugging is switched on before Wi-Fi is up,
   as at boot: the TLS server never binds and `adb mdns services` lists no `_adb-tls-connect._tcp`. Switching it
   off and on once Wi-Fi is connected brings the address back. Switch Wireless debugging off again when you are done.
+- **Now playing doesn't show** while music plays: it is off unless `now_playing` is true in `config.xml`
+  or a theme, and it needs the launcher's notification listener, which the install script enables only
+  with `NOW_PLAYING=1` (and reports `now-playing-granted` only when Android lists it as enabled). Android
+  8.0 has no `cmd notification allow_listener`; the script then adds the listener to
+  `enabled_notification_listeners` itself. The app also has to keep playing once you leave it: YouTube's
+  TV app stops when you press Home, SmartTube and Spotify carry on. The card stays out of the way while
+  the grid is scrolled, and with `rows_below_dock` above 0 there may be no room for it under the top bar.
 
 ## Accessibility helper enabled but the remote button does nothing
 
