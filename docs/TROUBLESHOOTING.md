@@ -935,6 +935,13 @@ Things that bit us or contributors, so they don't bite you. Commands use `tools/
   player. They are not packages of their own, so only that package leaves with it. `pm enable com.youview.poa` brought
   them back. How each one launches, and how to give each a Home tile, is in
   [the Sony UK catch-up note](devices/sony-youview-uk-catchup.md).
+- **Now playing doesn't show** while music plays: it is off unless `now_playing` is true in `config.xml`
+  or a theme, and it needs the launcher's notification listener, which the install script enables only
+  with `NOW_PLAYING=1` (and reports `now-playing-granted` only when Android lists it as enabled). Android
+  8.0 has no `cmd notification allow_listener`; the script then adds the listener to
+  `enabled_notification_listeners` itself. The app also has to keep playing once you leave it: YouTube's
+  TV app stops when you press Home, SmartTube and Spotify carry on. The card stays out of the way while
+  the grid is scrolled, and with `rows_below_dock` above 0 there may be no room for it under the top bar.
 
 ## Accessibility helper enabled but the remote button does nothing
 
