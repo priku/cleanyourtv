@@ -163,6 +163,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private String heroArtKey;
     /** The focus glow's colour while the cinematic shelf tints it, 0 for plain white glass. */
     private int glassAccent;
+    /** The Now playing card (now_playing), or null when it is off. */
+    private NowPlayingCard nowPlaying;
     private int ambientColor = -1;
     private ValueAnimator ambientAnimator;
     private boolean heroShown;
@@ -764,6 +766,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
             if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                // Settings leads to the Now playing card when it is up, the card's other way in being
+                // the dock's last app.
+                if (v.getId() == R.id.btnSettings && nowPlaying != null && nowPlaying.requestFocus()) return true;
                 // Back to the dock tile Up came from, not wherever the focus finder lands.
                 focusTile(singleRow ? lastFocused : lastFocused % COLUMNS);
                 return true;
@@ -790,10 +795,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         }
         if (festive) applyFestiveSkin((TextView) btnInputs, (TextView) btnSettings);
+        if (NowPlayingCard.enabled(this)) {
+            nowPlaying = new NowPlayingCard(this, handler, root, grid, btnSettings, heroName, animations);
+        }
 
         // Hide the glass when focus leaves the tiles.
         getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener((oldF, newF) -> {
-            boolean onTile = newF != null && newF.getId() == R.id.card;
+            boolean onTile = newF != null && (newF.getId() == R.id.card || newF.getId() == R.id.nowPlaying);
             if (!onTile) hideGlass();
         });
 
@@ -962,6 +970,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         sky.update();
         wallpaperPlayer.start();
         handler.postDelayed(minuteTick, MINUTE_MS);
+        if (nowPlaying != null) nowPlaying.start();
         if (festive && diya != null) {
             diya.start();
             LocalDate today = LocalDate.now();
@@ -1136,6 +1145,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroArt.animate().cancel();
         handler.removeCallbacks(minuteTick);
         stopStats();
+        if (nowPlaying != null) nowPlaying.stop();
         if (diya != null) diya.stop();
         cancelPendingFocusScroll();
         // Nothing of ours stays on screen over another app; an undecided prompt simply returns next time.
@@ -2232,7 +2242,12 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     rtlAppGrid, keyCode == KeyEvent.KEYCODE_DPAD_LEFT);
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            if (position < COLUMNS) return false;          // dock row: let focus move to the top bar
+            if (position < COLUMNS) {
+                if (nowPlaying == null || !nowPlaying.visible()) return false;   // dock row: on to the top bar
+                // With the Now playing card up, the dock's last app goes to it; the others go to the top
+                // bar as without the card (the card is not focusable until it is entered).
+                return position == lastDockApp() && nowPlaying.requestFocus();
+            }
             target = position - COLUMNS;
         } else {
             int lastRowStart = ((count - 1) / COLUMNS) * COLUMNS;
@@ -2247,6 +2262,61 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         grid.playSoundEffect(keyCode == KeyEvent.KEYCODE_DPAD_UP
                 ? SoundEffectConstants.NAVIGATION_UP : SoundEffectConstants.NAVIGATION_DOWN);
         return true;
+    }
+
+    /** The dock's last app: the tile the Now playing card is entered from and returns to. */
+    private int lastDockApp() {
+        return Math.max(0, Math.min(COLUMNS, adapter.dockFilled()) - 1);
+    }
+
+    /** Back from the Now playing card to the dock's last app, the tile it is entered from. */
+    void focusDockEnd() {
+        focusTile(lastDockApp());
+    }
+
+    /**
+     * The glass highlight onto a view outside the grid (the Now playing card), as it looks scaled by
+     * {@code scale}, with the view's unscaled corner {@code radius}. The card is placed with setY, which
+     * the layout rect leaves out.
+     */
+    void glassOnto(View target, float scale, float radius) {
+        Rect r = new Rect(0, 0, target.getWidth(), target.getHeight());
+        root.offsetDescendantRectToMyCoords(target, r);
+        float pad = 6f * density;        // matches GlassView's glow inset
+        float w = target.getWidth() * scale + 2 * pad;
+        float h = target.getHeight() * scale + 2 * pad;
+        glassTo(r.exactCenterX() - w / 2f, r.exactCenterY() + target.getTranslationY() - h / 2f, w, h, radius * scale, true);
+        glassCardW = -1;   // a tile focused next sets its own corners again
+    }
+
+    /**
+     * Moves the glass highlight to a w x h slab at (x, y) in root coordinates: in one jump the first time
+     * or without animations, otherwise on the spring (which works in grid content coordinates).
+     */
+    private void glassTo(float x, float y, float w, float h, float radius, boolean corners) {
+        ViewGroup.LayoutParams lp = glass.getLayoutParams();
+        if (lp.width != (int) w || lp.height != (int) h || corners) {
+            lp.width = (int) w;
+            lp.height = (int) h;
+            glass.setLayoutParams(lp);
+            glass.setRadius(radius);
+        }
+        glassTargetX = x;
+        glassTargetY = y;
+        if (!glassShown || !animations) {
+            springX.cancel();
+            springY.cancel();
+            glass.setTranslationX(x);
+            glass.setTranslationY(y);
+            if (!glassShown) {
+                if (animations && !reducedMotion) glass.animate().alpha(1f).setDuration(180).start();
+                else glass.setAlpha(1f);
+                glassShown = true;
+            }
+        } else {
+            springX.animateToFinalPosition(x - glassScrollShiftX);
+            springY.animateToFinalPosition(y - glassScrollShift);
+        }
     }
 
     @Override public void onLibraryFocused() {
@@ -2822,7 +2892,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     }
 
-    private void open(Intent i) {
+    void open(Intent i) {
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             startActivity(i);
