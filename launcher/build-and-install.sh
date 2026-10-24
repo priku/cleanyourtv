@@ -266,4 +266,14 @@ if [ "$ACK_FOUND" != 1 ]; then
   echo "The launcher is installed and is Home. Check by hand: tools/tv.py 'dumpsys package com.gathin.tvhome' | grep $SECURE" >&2
   exit 1
 fi
+# Now playing card (now_playing in config.xml or a theme). Android lists other apps' media sessions only to
+# an enabled notification listener, and that grant lets the launcher read every notification on the TV, so
+# it is asked for, never automatic:
+#   NOW_PLAYING=1   enable the launcher's notification listener (NowPlayingListener)
+# Android 8.0 has no `cmd notification allow_listener` (it prints an error but exits 0), so the listener is
+# also added to enabled_notification_listeners when it is not there yet, and the result is checked.
+if [ "${NOW_PLAYING:-0}" = 1 ]; then
+  L=com.gathin.tvhome/com.gathin.tvhome.NowPlayingListener
+  "$PY" -I ../tools/tv.py "cmd notification allow_listener $L >/dev/null 2>&1; l=\$(settings get secure enabled_notification_listeners); case \"\$l\" in *$L*) ;; *) [ \"\$l\" = null ] && l=; settings put secure enabled_notification_listeners \"\${l:+\$l:}$L\" ;; esac; case \"\$(settings get secure enabled_notification_listeners)\" in *$L*) echo now-playing-granted ;; *) echo now-playing-not-granted ;; esac"
+fi
 echo "Installed. Press Home on the remote to see it."
